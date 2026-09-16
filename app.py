@@ -296,8 +296,43 @@ def shelter_register():
                 message='避難所名を入力してください'
             )
 
-        next_id = max((shelter.get('id', 0) for shelter in shelters), default=0) + 1
-        shelters.append({'id': next_id, 'name': name})
+        address = request.form.get('address', '').strip()
+        latitude = request.form.get('latitude', '').strip()
+        longitude = request.form.get('longitude', '').strip()
+        if bool(latitude) != bool(longitude):
+            return render_template(
+                'shelter_register.html',
+                error=True,
+                message='緯度と経度は両方入力してください',
+                registered_name=name,
+                registered_address=address,
+                registered_latitude=latitude,
+                registered_longitude=longitude
+            )
+
+        shelter = {'id': max((item.get('id', 0) for item in shelters), default=0) + 1, 'name': name}
+        if address:
+            shelter['address'] = address
+        if latitude and longitude:
+            try:
+                latitude_value = float(latitude)
+                longitude_value = float(longitude)
+                if not (-90 <= latitude_value <= 90 and -180 <= longitude_value <= 180):
+                    raise ValueError
+            except ValueError:
+                return render_template(
+                    'shelter_register.html',
+                    error=True,
+                    message='緯度または経度の値が正しくありません',
+                    registered_name=name,
+                    registered_address=address,
+                    registered_latitude=latitude,
+                    registered_longitude=longitude
+                )
+            shelter['latitude'] = latitude_value
+            shelter['longitude'] = longitude_value
+
+        shelters.append(shelter)
         save_shelters()
         return render_template(
             'shelter_register.html',

@@ -1,20 +1,244 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>検索結果</h2>
+<style>
+  .results-page {
+    width: min(1000px, calc(100% - 32px));
+    margin: 0 auto 50px;
+  }
+  .results-table-wrap { overflow-x: auto; }
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #111;
+    background: #fff;
+    table-layout: fixed;
+  }
+  .results-table th, .results-table td {
+    border: 1px solid #222;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+    word-break: break-word;
+  }
+  .results-table th { background: #d9d9d9; font-weight: 700; }
+  .results-table th:nth-child(1) { width: 14%; }
+  .results-table th:nth-child(2) { width: 14%; }
+  .results-table th:nth-child(3) { width: 11%; }
+  .results-table th:nth-child(4) { width: 20%; }
+  .results-table th:nth-child(5),
+  .results-table th:nth-child(6),
+  .results-table th:nth-child(7) { width: 11%; }
+  .results-table th:nth-child(8) { width: 12%; }
+  .results-table th:nth-child(9) { width: 13%; }
+  .no-results { padding: 24px 0; color: #b00020; }
+  .location-tools {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 18px;
+  }
+  .location-button {
+    padding: 9px 16px;
+    border: 1px solid var(--blue);
+    border-radius: 4px;
+    color: #fff;
+    background: var(--blue);
+    cursor: pointer;
+    font: inherit;
+  }
+  .location-status { margin: 0; color: #4c5b6b; font-size: 14px; }
+  .route-link {
+    display: inline-block;
+    padding: 6px 9px;
+    border: 1px solid #9aa7b5;
+    border-radius: 4px;
+    color: #5b6875;
+    background: #f1f3f5;
+    font-size: 13px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .route-link.is-ready {
+    border-color: var(--blue);
+    color: #fff;
+    background: var(--blue);
+  }
+  .route-link.is-disabled { pointer-events: none; opacity: .7; }
+  .results-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 86px;
+  }
+  .results-actions a { color: #222; }
+  .home-button {
+    padding: 8px 24px;
+    border: 1px solid #aaa;
+    color: #222;
+    background: #d9d9d9;
+    text-decoration: none;
+  }
+  @media (max-width: 600px) {
+    .results-page { width: calc(100% - 20px); }
+    .results-table { min-width: 820px; }
+    .location-tools { align-items: flex-start; flex-direction: column; }
+    .results-actions { margin-top: 42px; }
+  }
+</style>
 
-{% if results %}
-  <ul>
-    {% for shelter in results %}
-    <li>{{ shelter.name }}</li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>該当する避難所が見つかりませんでした</p>
-{% endif %}
+<div class="results-page">
+  <div class="location-tools">
+    <button class="location-button" id="locationButton" type="button">現在地を取得してルート案内</button>
+    <p class="location-status" id="locationStatus">ボタンを押すと、現在地から各避難所への徒歩ルートを開けます。</p>
+  </div>
 
-<p>
-  <a href="/shelter_search">検索画面に戻る</a> |
-  <a href="/">トップページへ戻る</a>
-</p>
+  {% if results %}
+  <div class="results-table-wrap">
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th>避難所名</th>
+          <th>住所</th>
+          <th>混雑状況</th>
+          <th>周囲の目印となる建物からの距離、時間</th>
+          <th>ペット可否</th>
+          <th>車椅子対応</th>
+          <th>多目的トイレ</th>
+          <th>現在地からの距離</th>
+          <th>ルート案内</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for shelter in results %}
+        <tr data-latitude="{{ shelter.get('latitude', '') }}" data-longitude="{{ shelter.get('longitude', '') }}">
+          <td>{{ shelter.get('name', '—') }}</td>
+          <td>{{ shelter.get('address', '—') }}</td>
+          <td>{{ shelter.get('congestion', '—') }}</td>
+          <td>{{ shelter.get('landmark', '—') }}</td>
+          <td>{{ shelter.get('pets', '—') }}</td>
+          <td>{{ shelter.get('wheelchair', '—') }}</td>
+          <td>{{ shelter.get('toilet', '—') }}</td>
+          <td class="distance-cell">—</td>
+          <td>
+            <a class="route-link is-disabled"
+               data-destination="{{ shelter.get('address', shelter.get('name', '')) }}"
+               href="#" aria-disabled="true">現在地が必要</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="no-results">該当する避難所が見つかりませんでした</p>
+  {% endif %}
+
+  <div class="results-actions">
+    <a class="home-button" href="/">ホームに戻る</a>
+    <a href="/shelter_search">検索画面に戻る</a>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const locationButton = document.getElementById('locationButton');
+  const locationStatus = document.getElementById('locationStatus');
+  const routeLinks = document.querySelectorAll('.route-link');
+  const resultBody = document.querySelector('.results-table tbody');
+  const earthRadiusKm = 6371;
+
+  function calculateDistanceKm(latitude1, longitude1, latitude2, longitude2) {
+    const latitudeDelta = (latitude2 - latitude1) * Math.PI / 180;
+    const longitudeDelta = (longitude2 - longitude1) * Math.PI / 180;
+    const latitude1Radians = latitude1 * Math.PI / 180;
+    const latitude2Radians = latitude2 * Math.PI / 180;
+    const value = Math.sin(latitudeDelta / 2) ** 2
+      + Math.cos(latitude1Radians) * Math.cos(latitude2Radians)
+      * Math.sin(longitudeDelta / 2) ** 2;
+    return earthRadiusKm * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+  }
+
+  locationButton.addEventListener('click', function() {
+    if (!navigator.geolocation) {
+      locationStatus.textContent = 'このブラウザは位置情報に対応していません。';
+      return;
+    }
+
+    locationButton.disabled = true;
+    locationButton.textContent = '現在地を取得中...';
+    locationStatus.textContent = '位置情報の利用を許可してください。';
+
+    navigator.geolocation.getCurrentPosition(function(position) {
+      const origin = `${position.coords.latitude},${position.coords.longitude}`;
+      const rows = resultBody ? Array.from(resultBody.querySelectorAll('tr')) : [];
+      let locatedShelterCount = 0;
+
+      rows.forEach(function(row) {
+        const latitude = Number(row.dataset.latitude);
+        const longitude = Number(row.dataset.longitude);
+        const distanceCell = row.querySelector('.distance-cell');
+
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          row.dataset.distance = '';
+          return;
+        }
+
+        const distance = calculateDistanceKm(
+          position.coords.latitude,
+          position.coords.longitude,
+          latitude,
+          longitude
+        );
+        row.dataset.distance = distance;
+        distanceCell.textContent = `${distance.toFixed(1)} km`;
+        locatedShelterCount += 1;
+      });
+
+      if (resultBody) {
+        rows.sort(function(firstRow, secondRow) {
+          const firstDistance = firstRow.dataset.distance;
+          const secondDistance = secondRow.dataset.distance;
+          if (firstDistance === '') return 1;
+          if (secondDistance === '') return -1;
+          return Number(firstDistance) - Number(secondDistance);
+        }).forEach(function(row) {
+          resultBody.appendChild(row);
+        });
+      }
+
+      routeLinks.forEach(function(link) {
+        const destination = link.dataset.destination;
+        if (!destination) return;
+
+        const routeUrl = new URL('https://www.google.com/maps/dir/');
+        routeUrl.searchParams.set('api', '1');
+        routeUrl.searchParams.set('origin', origin);
+        routeUrl.searchParams.set('destination', destination);
+        routeUrl.searchParams.set('travelmode', 'walking');
+        link.href = routeUrl.toString();
+        link.textContent = '徒歩ルートを見る';
+        link.classList.remove('is-disabled');
+        link.classList.add('is-ready');
+        link.setAttribute('aria-disabled', 'false');
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+      });
+
+      locationButton.disabled = false;
+      locationButton.textContent = '現在地を更新';
+      locationStatus.textContent = locatedShelterCount > 0
+        ? `現在地から近い順に並べました（距離情報あり ${locatedShelterCount}件）。`
+        : '現在地は取得しましたが、距離計算用の座標が登録された避難所がありません。';
+    }, function(error) {
+      const message = error.code === 1
+        ? '位置情報の利用が許可されませんでした。'
+        : '現在地を取得できませんでした。時間をおいて再度お試しください。';
+      locationButton.disabled = false;
+      locationButton.textContent = '現在地を取得してルート案内';
+      locationStatus.textContent = message;
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  });
+});
+</script>
 {% endblock %}
