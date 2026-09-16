@@ -1,15 +1,72 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- 避難所マップ -->
-<h2>避難所マップ</h2>
-<div id="shelterMap" style="height: 300px;"></div>
+<style>
+    .home {
+        width: min(910px, calc(100% - 32px));
+        margin: 34px auto 70px;
+    }
 
-<!-- 気象警報・注意報 -->
-<h2>青森市 気象警報・注意報</h2>
-<p>10分おきに自動更新されます。</p>
-<div id="weatherContent">
-  <p>読み込み中...</p>
+    .home-card {
+        margin-bottom: 34px;
+        padding: 27px 28px 30px;
+        border-radius: 17px;
+        background: var(--surface);
+        box-shadow: 0 6px 24px rgba(36, 68, 116, .08);
+    }
+
+    .section-heading {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0 0 19px;
+        color: var(--blue);
+        font-size: 24px;
+        font-weight: 800;
+    }
+
+    .heading-icon { font-size: 23px; }
+    .map-heading-icon { color: var(--blue); }
+    .weather-heading-icon { color: var(--blue); }
+    #shelterMap { height: 365px; overflow: hidden; border-radius: 12px; }
+
+    .weather-heading { justify-content: space-between; }
+    .refresh-label { color: var(--green); font-size: 16px; font-weight: 700; }
+    .weather-panel {
+        min-height: 142px;
+        padding: 19px 20px;
+        border-radius: 12px;
+        background: #f7f8fa;
+    }
+    .weather-panel p { margin: 0 0 10px; }
+    .weather-place { color: var(--ink); font-size: 18px; font-weight: 700; }
+    .weather-ok { color: var(--green); font-size: 18px; font-weight: 700; }
+    .weather-meta { color: #607080; font-size: 14px; }
+
+    @media (max-width: 600px) {
+        .home { width: calc(100% - 20px); margin-top: 16px; }
+        .home-card { margin-bottom: 18px; padding: 20px 14px; border-radius: 13px; }
+        .section-heading { font-size: 19px; }
+        .refresh-label { font-size: 13px; }
+        #shelterMap { height: 300px; }
+    }
+</style>
+
+<div class="home">
+    <section class="home-card">
+        <h2 class="section-heading"><i class="fa-solid fa-location-dot heading-icon map-heading-icon" aria-hidden="true"></i>避難所マップ</h2>
+        <div id="shelterMap" aria-label="青森市の避難所マップ"></div>
+    </section>
+
+    <section class="home-card">
+        <h2 class="section-heading weather-heading">
+            <span><i class="fa-solid fa-cloud-sun heading-icon weather-heading-icon" aria-hidden="true"></i> 青森市 気象警報・注意報</span>
+            <span class="refresh-label"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> 10分おき自動更新</span>
+        </h2>
+        <div id="weatherContent" class="weather-panel">
+            <p>読み込み中...</p>
+        </div>
+    </section>
 </div>
 
 <!-- Leaflet の読み込み -->
@@ -18,8 +75,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 地図の初期化（藤沢市周辺を中心に設定）
-    const map = L.map('shelterMap').setView([35.3390, 139.4903], 12);
+    // 地図の初期化（青森市周辺を中心に設定）
+    const map = L.map('shelterMap').setView([40.8244, 140.7400], 12);
 
     // OpenStreetMapタイルを追加
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -56,14 +113,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             warningsHtml += '</ul>';
         } else {
-            warningsHtml = '<p>現在、警報・注意報は発表されていません</p>';
+            warningsHtml = '<p class="weather-ok"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> 現在、警報・注意報は発表されていません</p>';
         }
 
         weatherContent.innerHTML = `
-            <p>対象地域: ${data.area_name || '青森市'}</p>
+            <p class="weather-place"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${data.area_name || '青森市'}</p>
             ${warningsHtml}
-            <p>最終確認: <span id="lastFetchTime">${data.last_fetch_time || '更新中...'}</span></p>
-            <p>気象庁最終発表: ${data.report_time || '不明'}</p>
+            <p class="weather-meta"><i class="fa-regular fa-clock" aria-hidden="true"></i> データ取得: <span id="lastFetchTime">${data.last_fetch_time || '更新中...'}</span></p>
+            <p class="weather-meta"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> 気象庁発表: ${data.report_time || '不明'}</p>
         `;
     }
 

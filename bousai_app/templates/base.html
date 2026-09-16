@@ -4,31 +4,112 @@
   <meta charset="utf-8">
   <title>{% block title %}防災アプリ{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    :root {
+      --blue: #2f5eb4;
+      --blue-dark: #28549f;
+      --green: #24a149;
+      --ink: #4c5b6b;
+      --surface: #ffffff;
+      --page: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--page);
+      font-family: "Noto Sans JP", "Yu Gothic", sans-serif;
+      font-size: 16px;
+    }
+
+    .app-header {
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 max(28px, calc((100% - 1380px) / 2));
+      color: #fff;
+      background: var(--blue);
+      box-shadow: 0 2px 8px rgba(35, 61, 104, .16);
+    }
+
+    .app-title {
+      margin: 0;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: .03em;
+    }
+
+    .menu-toggle {
+      border: 0;
+      padding: 8px;
+      color: #fff;
+      background: transparent;
+      cursor: pointer;
+      font-size: 27px;
+      line-height: 1;
+    }
+
+    .menu-panel {
+      position: absolute;
+      z-index: 1000;
+      top: 62px;
+      right: 24px;
+      display: none;
+      min-width: 210px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(31, 53, 91, .18);
+    }
+
+    .menu-panel.is-open { display: grid; }
+    .menu-panel a { padding: 11px 13px; color: var(--blue); text-decoration: none; }
+    .menu-panel a:hover { background: #f0f5ff; }
+
+    main { min-height: calc(100vh - 70px); }
+
+    @media (max-width: 600px) {
+      .app-header { height: 60px; padding: 0 18px; }
+      .app-title { font-size: 21px; }
+      .menu-panel { top: 53px; right: 12px; }
+    }
+  </style>
 </head>
 <body>
-  <!-- ヘッダー -->
-  <h1>防災アプリ</h1>
-
-  <!-- ナビゲーション -->
-  <nav>
-    <a href="/">ホーム</a> |
-    <a href="/shelter_search">避難所検索</a> |
-    <a href="/shelter_register">避難所登録</a> |
-    <a href="/board">指示・発信ボード</a>
-    ｜
-    {% if session.logged_in %}
-      ログイン中{% if session.username %}（{{ session.username }}）{% endif %}
-      <a href="/logout">ログアウト</a>
-    {% else %}
-      未ログイン
-      <a href="/login">ログイン</a>
-    {% endif %}
-  </nav>
-  <hr>
+  <header class="app-header">
+    <h1 class="app-title">防災アプリ</h1>
+    <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false">☰</button>
+    <nav class="menu-panel" aria-label="メインメニュー">
+      <a href="/">ホーム</a>
+      <a href="/shelter_search">避難所検索</a>
+      <a href="/shelter_register">避難所登録</a>
+      <a href="/board">指示・発信ボード</a>
+      {% if session.logged_in %}
+        <a href="/logout">ログアウト</a>
+      {% else %}
+        <a href="/login">ログイン</a>
+      {% endif %}
+    </nav>
+  </header>
 
   <main>
-    <!-- ここに子テンプレートの content が入る -->
     {% block content %}{% endblock %}
   </main>
+  <script>
+    const menuToggle = document.querySelector('.menu-toggle');
+    const menuPanel = document.querySelector('.menu-panel');
+    menuToggle.addEventListener('click', () => {
+      const isOpen = menuPanel.classList.toggle('is-open');
+      menuToggle.setAttribute('aria-expanded', isOpen);
+    });
+  </script>
 </body>
 </html>
