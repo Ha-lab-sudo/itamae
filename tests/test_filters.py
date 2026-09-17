@@ -84,16 +84,24 @@ class ShelterSearchPageTests(unittest.TestCase):
             self.assertIn('name="multipurpose_toilet"', html)
             self.assertIn('method="get"', html)
             self.assertIn('action="/search_results"', html)
-            self.assertIn('id="locationPermissionDialog"', html)
-            self.assertIn('id="locationDialogConfirm"', html)
-            self.assertIn('取得する', html)
-            self.assertIn('navigator.geolocation.getCurrentPosition', html)
+            self.assertIn('navigator.geolocation', html)
+            self.assertIn('currentLocation', html)
+            self.assertIn('現在地を取得してルート案内', html)
+            self.assertIn('locationPermissionDialog', html)
+            self.assertIn('エリアを選択してください。', html)
+            self.assertIn('aria-invalid', html)
 
     def test_search_results_route_accepts_area_parameters(self):
         with app.test_client() as client:
             response = client.get('/search_results?area=%E5%8C%97%E5%81%B4&district=%E9%9D%92%E6%9D%BE&pet_ok=1&wheelchair_ok=1')
             self.assertEqual(response.status_code, 200)
             self.assertIn('北側', response.get_data(as_text=True))
+
+    def test_search_results_requires_area(self):
+        with app.test_client() as client:
+            response = client.get('/search_results', follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('エリアを選択してください。', response.get_data(as_text=True))
 
     def test_search_results_route_applies_filter_parameters(self):
         from app import shelters
@@ -110,6 +118,10 @@ class ShelterSearchPageTests(unittest.TestCase):
             self.assertIn('空きペット', html)
             self.assertNotIn('満員ペット', html)
             self.assertIn('value="exclude_full"', html)
+            self.assertIn('現在地からの距離', html)
+            self.assertIn('徒歩ルートを見る', html)
+            self.assertIn('calculateDistanceKm', html)
+            self.assertIn('travelmode', html)
         finally:
             shelters[:] = original_shelters
 

@@ -25,7 +25,9 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         original_shelters = list(app_module.shelters)
         try:
-            with patch.object(app_module, 'save_shelters'):
+            with patch.object(app_module, 'save_shelters'), patch.object(
+                app_module, 'geocode_address', return_value=None
+            ):
                 response = self.client.post('/shelter_register', data={
                     'name': 'テスト避難所',
                     'area': '北側',
@@ -72,6 +74,12 @@ class AppRouteTests(unittest.TestCase):
             response = self.client.get('/api/weather_warnings')
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.get_json()['error'])
+
+    def test_reverse_geocode_api(self):
+        with patch.object(app_module, 'reverse_geocode_coordinates', return_value='青森県青森市新町'):
+            response = self.client.get('/api/reverse-geocode?latitude=40.8&longitude=140.7')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()['address'], '青森県青森市新町')
 
     def test_board_validates_and_saves_multiple_values(self):
         with self.client.session_transaction() as session:

@@ -125,6 +125,58 @@ def save_shelters():
     _save_json(DATA_FILE, shelters)
 
 
+def geocode_address(address):
+    """住所を地図用座標へ変換する。取得できない場合はNoneを返す。"""
+    if not address:
+        return None
+    try:
+        query = quote(address)
+        geocode_request = urllib.request.Request(
+            f'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q={query}',
+            headers={'User-Agent': 'bousai-app/1.0'},
+        )
+        with urllib.request.urlopen(geocode_request, timeout=5) as response:
+            results = json.loads(response.read())
+        if not results:
+            return None
+        return float(results[0]['lat']), float(results[0]['lon'])
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def reverse_geocode_coordinates(latitude, longitude):
+    """緯度・経度を住所へ変換する。取得できない場合はNoneを返す。"""
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+        if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
+            return None
+        query = urlencode({
+            'format': 'jsonv2',
+            'lat': latitude,
+            'lon': longitude,
+            'zoom': 18,
+            'addressdetails': 1,
+        })
+        reverse_request = urllib.request.Request(
+            f'https://nominatim.openstreetmap.org/reverse?{query}',
+            headers={'Accept': 'application/json', 'User-Agent': 'bousai-app/1.0'},
+        )
+        with urllib.request.urlopen(reverse_request, timeout=5) as response:
+            payload = json.loads(response.read())
+        address_data = payload.get('address') or {}
+        parts = [
+            address_data.get('state'),
+            address_data.get('city') or address_data.get('town') or address_data.get('village'),
+            address_data.get('suburb') or address_data.get('neighbourhood'),
+            address_data.get('quarter'),
+            address_data.get('road'),
+        ]
+        return ''.join(part for part in parts if part) or None
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
 def get_registered_shelters(source=None):
     """登録フォームを通過した避難所だけを発信用に返す"""
     items = source if source is not None else shelters
@@ -137,103 +189,6 @@ def get_registered_shelters(source=None):
     ]
 
 
-def geocode_address(address):
-    """住所を地図用座標へ変換する。取得できない場合はNoneを返す。"""
-    if not address:
-        return None
-    try:
-        query = quote(address)
-        request = urllib.request.Request(
-            f'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q={query}',
-            headers={'User-Agent': 'bousai-app/1.0'},
-        )
-        with urllib.request.urlopen(request, timeout=5) as response:
-            results = json.loads(response.read())
-        if not results:
-            return None
-        return float(results[0]['lat']), float(results[0]['lon'])
-    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
-        return None
-
-
-def reverse_geocode_coordinates(latitude, longitude):
-    """緯度・経度から都道府県、市区町村、町名を取得する。"""
-    api_key = os.environ.get('GOOGLE_MAPS_API_KEY', '').strip()
-    try:
-        latitude = float(latitude)
-        longitude = float(longitude)
-    except (TypeError, ValueError):
-        return None
-    if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
-        return None
-
-    try:
-        if api_key:
-            query = urlencode({
-                'latlng': f'{latitude},{longitude}',
-                'language': 'ja',
-                'key': api_key,
-            })
-            request = urllib.request.Request(
-                f'https://maps.googleapis.com/maps/api/geocode/json?{query}',
-                headers={'Accept': 'application/json'},
-            )
-            with urllib.request.urlopen(request, timeout=5) as response:
-                payload = json.loads(response.read())
-        else:
-            query = urlencode({'lat': latitude, 'lon': longitude})
-            request = urllib.request.Request(
-                f'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?{query}',
-                headers={'Accept': 'application/json'},
-            )
-            try:
-                with urllib.request.urlopen(request, timeout=5) as response:
-                    payload = json.loads(response.read())
-                address = (payload.get('results') or {}).get('lv01Nm')
-                if address:
-                    return address
-            except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
-                pass
-
-            query = urlencode({
-                'format': 'jsonv2',
-                'lat': latitude,
-                'lon': longitude,
-                'zoom': 18,
-                'addressdetails': 1,
-            })
-            request = urllib.request.Request(
-                f'https://nominatim.openstreetmap.org/reverse?{query}',
-                headers={'Accept': 'application/json', 'User-Agent': 'bousai-app/1.0'},
-            )
-            with urllib.request.urlopen(request, timeout=5) as response:
-                payload = json.loads(response.read())
-            address_data = payload.get('address') or {}
-            parts = [
-                address_data.get('state'),
-                address_data.get('city') or address_data.get('town') or address_data.get('village'),
-                address_data.get('suburb') or address_data.get('neighbourhood'),
-                address_data.get('quarter'),
-                address_data.get('road'),
-            ]
-            return ''.join(part for part in parts if part) or None
-        if payload.get('status') != 'OK' or not payload.get('results'):
-            return None
-
-        components = {
-            component_type: component.get('long_name', '')
-            for component in payload['results'][0].get('address_components', [])
-            for component_type in component.get('types', [])
-        }
-        parts = [
-            components.get('administrative_area_level_1'),
-            components.get('locality') or components.get('administrative_area_level_2'),
-            components.get('sublocality_level_1') or components.get('sublocality'),
-        ]
-        address = ''.join(part for part in parts if part)
-        return address or None
-    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
-        return None
 # ────────────────────────────────
 
 # ────────────────────────────────
@@ -685,6 +640,8 @@ def board():
 def search_results():
     district = request.args.get('district', '').strip()
     area = request.args.get('area', '').strip()
+    if not area:
+        return redirect(url_for('shelter_search', error_message='エリアを選択してください。'))
     active_filters = request.args.getlist('filters')
     legacy_filters = {
         'pet_ok': 'pets',
@@ -750,9 +707,10 @@ def api_home_instructions():
 @app.route('/api/reverse-geocode')
 def api_reverse_geocode():
     """現在地の緯度・経度を住所へ変換する"""
-    latitude = request.args.get('latitude')
-    longitude = request.args.get('longitude')
-    address = reverse_geocode_coordinates(latitude, longitude)
+    address = reverse_geocode_coordinates(
+        request.args.get('latitude'),
+        request.args.get('longitude'),
+    )
     if address is None:
         return jsonify({'error': '住所を取得できませんでした。'}), 502
     return jsonify({'address': address})
