@@ -23,6 +23,10 @@
     <input type="text" id="address" name="address" value="{{ registered_address|default('') }}">
   </p>
   <p>
+    <label for="phone">連絡先（任意）</label><br>
+    <input type="text" id="phone" name="phone" value="{{ registered_phone|default('') }}" placeholder="例: 090-1234-5678">
+  </p>
+  <p>
     <label for="latitude">緯度・経度（距離計算用・任意）</label><br>
     <input type="text" id="latitude" name="latitude" inputmode="decimal" placeholder="緯度" value="{{ registered_latitude|default('') }}">
     <input type="text" id="longitude" name="longitude" inputmode="decimal" placeholder="経度" value="{{ registered_longitude|default('') }}">

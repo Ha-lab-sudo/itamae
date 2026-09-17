@@ -25,12 +25,13 @@
   .results-table th:nth-child(1) { width: 14%; }
   .results-table th:nth-child(2) { width: 14%; }
   .results-table th:nth-child(3) { width: 11%; }
-  .results-table th:nth-child(4) { width: 20%; }
-  .results-table th:nth-child(5),
+  .results-table th:nth-child(4) { width: 11%; }
+  .results-table th:nth-child(5) { width: 15%; }
   .results-table th:nth-child(6),
-  .results-table th:nth-child(7) { width: 11%; }
-  .results-table th:nth-child(8) { width: 12%; }
-  .results-table th:nth-child(9) { width: 13%; }
+  .results-table th:nth-child(7),
+  .results-table th:nth-child(8) { width: 11%; }
+  .results-table th:nth-child(9) { width: 12%; }
+  .results-table th:nth-child(10) { width: 13%; }
   .no-results { padding: 24px 0; color: #b00020; }
   .location-tools {
     display: flex;
@@ -65,6 +66,51 @@
     background: var(--blue);
   }
   .route-link.is-disabled { pointer-events: none; opacity: .7; }
+  .filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 20px;
+    padding: 16px 18px;
+    border: 1px solid #d8e1ee;
+    border-radius: 12px;
+    background: #f4f8fc;
+  }
+  .filter-label-group {
+    font-weight: 700;
+    color: #2d3e50;
+  }
+  .filter-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid #c1d0df;
+    border-radius: 999px;
+    background: #fff;
+    color: #2b415b;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .filter-chip input {
+    margin: 0 7px 0 0;
+    transform: translateY(1px);
+  }
+  .search-button {
+    display: inline-block;
+    padding: 9px 16px;
+    border: 1px solid var(--blue);
+    border-radius: 4px;
+    color: #fff;
+    background: var(--blue);
+    cursor: pointer;
+    font: inherit;
+  }
   .results-actions {
     display: flex;
     justify-content: space-between;
@@ -93,6 +139,30 @@
     <p class="location-status" id="locationStatus">ボタンを押すと、現在地から各避難所への徒歩ルートを開けます。</p>
   </div>
 
+  <form class="filter-form" action="/search_results" method="get">
+    {% if district %}
+      <input type="hidden" name="district" value="{{ district }}">
+    {% endif %}
+    <div class="filter-label-group">
+      <span>条件で絞り込む</span>
+    </div>
+    <div class="filter-list">
+      <label class="filter-chip">
+        <input type="checkbox" name="filters" value="pets" {% if 'pets' in active_filters %}checked{% endif %}>
+        <span>ペット可</span>
+      </label>
+      <label class="filter-chip">
+        <input type="checkbox" name="filters" value="wheelchair" {% if 'wheelchair' in active_filters %}checked{% endif %}>
+        <span>車椅子対応</span>
+      </label>
+      <label class="filter-chip">
+        <input type="checkbox" name="filters" value="toilet" {% if 'toilet' in active_filters %}checked{% endif %}>
+        <span>多目的トイレ</span>
+      </label>
+    </div>
+    <button class="search-button" type="submit">条件で絞り込む</button>
+  </form>
+
   {% if results %}
   <div class="results-table-wrap">
     <table class="results-table">
@@ -100,8 +170,8 @@
         <tr>
           <th>避難所名</th>
           <th>住所</th>
+          <th>連絡先</th>
           <th>混雑状況</th>
-          <th>周囲の目印となる建物からの距離、時間</th>
           <th>ペット可否</th>
           <th>車椅子対応</th>
           <th>多目的トイレ</th>
@@ -114,8 +184,8 @@
         <tr data-latitude="{{ shelter.get('latitude', '') }}" data-longitude="{{ shelter.get('longitude', '') }}">
           <td>{{ shelter.get('name', '—') }}</td>
           <td>{{ shelter.get('address', '—') }}</td>
+          <td>{{ shelter.get('phone', '—') }}</td>
           <td>{{ shelter.get('congestion', '—') }}</td>
-          <td>{{ shelter.get('landmark', '—') }}</td>
           <td>{{ shelter.get('pets', '—') }}</td>
           <td>{{ shelter.get('wheelchair', '—') }}</td>
           <td>{{ shelter.get('toilet', '—') }}</td>

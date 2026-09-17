@@ -3,12 +3,12 @@
 {% block content %}
 <style>
     .home {
-        width: min(910px, calc(100% - 32px));
+        width: min(920px, calc(100% - 32px));
         margin: 34px auto 70px;
     }
 
     .home-card {
-        margin-bottom: 34px;
+        margin-bottom: 32px;
         padding: 27px 28px 30px;
         border-radius: 17px;
         background: var(--surface);
@@ -27,21 +27,86 @@
 
     .heading-icon { font-size: 23px; }
     .map-heading-icon { color: var(--blue); }
+    .instruction-heading-icon { color: var(--blue); }
     .weather-heading-icon { color: var(--blue); }
     #shelterMap { height: 365px; overflow: hidden; border-radius: 12px; }
 
     .weather-heading { justify-content: space-between; }
     .refresh-label { color: var(--green); font-size: 16px; font-weight: 700; }
-    .weather-panel {
-        min-height: 142px;
+    .weather-panel, .instruction-panel, .usage-panel {
         padding: 19px 20px;
         border-radius: 12px;
         background: #f7f8fa;
     }
-    .weather-panel p { margin: 0 0 10px; }
+    .weather-panel p, .instruction-panel p, .usage-panel p { margin: 0 0 10px; }
     .weather-place { color: var(--ink); font-size: 18px; font-weight: 700; }
     .weather-ok { color: var(--green); font-size: 18px; font-weight: 700; }
     .weather-meta { color: #607080; font-size: 14px; }
+
+    .instruction-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+    .instruction-select {
+        min-width: 170px;
+        padding: 8px 12px;
+        border: 1px solid #c8d7ea;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+    }
+    .instruction-list {
+        margin: 0;
+        padding-left: 1.1rem;
+    }
+    .instruction-item {
+        margin: 0 0 12px;
+        padding: 0;
+    }
+    .instruction-item.urgent .instruction-content,
+    .instruction-item.urgent .instruction-label {
+        color: #c11a1a;
+    }
+    .instruction-meta {
+        margin-top: 6px;
+        color: #607080;
+        font-size: 14px;
+    }
+    .instruction-label {
+        display: inline-block;
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: #eef3fa;
+        color: #34517d;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .empty-state {
+        margin: 0;
+        color: #4c5b6b;
+    }
+    .usage-panel {
+        background: #fff;
+        border: 1px solid #edf1f5;
+    }
+    .usage-panel h3 {
+        margin: 0 0 14px;
+        color: var(--ink);
+        font-size: 22px;
+    }
+    .usage-panel ul {
+        margin: 0;
+        padding-left: 1.2rem;
+        color: #1c2430;
+    }
+    .usage-panel li {
+        margin-bottom: 10px;
+        line-height: 1.7;
+    }
 
     @media (max-width: 600px) {
         .home { width: calc(100% - 20px); margin-top: 16px; }
@@ -49,6 +114,8 @@
         .section-heading { font-size: 19px; }
         .refresh-label { font-size: 13px; }
         #shelterMap { height: 300px; }
+        .instruction-controls { align-items: flex-start; flex-direction: column; }
+        .instruction-select { width: 100%; }
     }
 </style>
 
@@ -59,57 +126,169 @@
     </section>
 
     <section class="home-card">
+        <h2 class="section-heading"><i class="fa-solid fa-bullhorn heading-icon instruction-heading-icon" aria-hidden="true"></i>指示・発信情報</h2>
+        <div class="instruction-panel">
+            <div class="instruction-controls">
+                <label for="instructionArea" class="sr-only" style="position:absolute;left:-9999px;">地域選択</label>
+                <select id="instructionArea" class="instruction-select" aria-label="発信地域を選択">
+                    {% for option in area_options %}
+                        <option value="{{ option.value }}" {% if option.value == '北' %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="instructionContent">読み込み中...</div>
+        </div>
+    </section>
+
+    <section class="home-card">
         <h2 class="section-heading weather-heading">
-            <span><i class="fa-solid fa-cloud-sun heading-icon weather-heading-icon" aria-hidden="true"></i> 青森市 気象警報・注意報</span>
+            <span><i class="fa-solid fa-cloud-sun heading-icon weather-heading-icon" aria-hidden="true"></i> 気象警報・注意報</span>
             <span class="refresh-label"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> 10分おき自動更新</span>
         </h2>
         <div id="weatherContent" class="weather-panel">
             <p>読み込み中...</p>
         </div>
     </section>
+
+    <section class="home-card">
+        <div class="usage-panel">
+            <h3>ご利用方法</h3>
+            <ul>
+                <li>画面右上の三本線を押すと、ご利用になりたいメニューを選択できます。</li>
+                <li>避難所の混雑状況などは、「避難所検索」からご確認いただけます。</li>
+                <li>市の職員の方はログインのうえ、「指示・発信ボード」から情報をご登録ください。</li>
+            </ul>
+        </div>
+    </section>
 </div>
 
-<!-- Leaflet の読み込み -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 地図の初期化（青森市周辺を中心に設定）
-    const map = L.map('shelterMap').setView([40.8244, 140.7400], 12);
-
-    // OpenStreetMapタイルを追加
+    const shelterMap = L.map('shelterMap').setView([40.8244, 140.7400], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         referrerPolicy: 'strict-origin-when-cross-origin'
-    }).addTo(map);
+    }).addTo(shelterMap);
 
-    // 気象警報・注意報の自動更新機能
+    const shelterData = {{ shelters | tojson | safe }};
+    shelterData.forEach(function(shelter) {
+        if (shelter && Number.isFinite(Number(shelter.latitude)) && Number.isFinite(Number(shelter.longitude))) {
+            const marker = L.marker([Number(shelter.latitude), Number(shelter.longitude)]).addTo(shelterMap);
+            const popupHtml = `
+                <div>
+                    <strong>${(shelter.name || '避難所')}</strong><br>
+                    ${shelter.address || '住所未設定'}<br>
+                    混雑状況: ${shelter.congestion || '不明'}
+                </div>
+            `;
+            marker.bindPopup(popupHtml);
+        }
+    });
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function(match) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[match];
+        });
+    }
+
+    function renderInstructions(data) {
+        const instructionContent = document.getElementById('instructionContent');
+        if (!instructionContent) return;
+
+        if (!data || data.error) {
+            instructionContent.innerHTML = '<p class="empty-state">指示・発信情報の取得に失敗しました。時間をおいて再度お試しください。</p>';
+            return;
+        }
+
+        const instructions = Array.isArray(data.instructions) ? data.instructions : [];
+        if (!instructions.length) {
+            instructionContent.innerHTML = '<p class="empty-state">現在、表示する指示・発信はありません。</p>';
+            return;
+        }
+
+        const items = instructions.map(function(item) {
+            const urgency = item.urgency || '未設定';
+            const isUrgent = urgency === '高';
+            const content = escapeHtml(item.content || '');
+            const shelter = item.shelter ? escapeHtml(item.shelter) : '';
+            const createdAt = item.created_at ? escapeHtml(item.created_at) : '';
+            const urgencyText = escapeHtml(urgency);
+            return `
+              <li class="instruction-item ${isUrgent ? 'urgent' : ''}">
+                <div class="instruction-content">${content}${shelter ? `（避難先: ${shelter}）` : ''}</div>
+                <div class="instruction-meta">
+                  <span class="instruction-label">${urgencyText}</span>
+                  ${createdAt ? ` <span>発信日時: ${createdAt}</span>` : ''}
+                </div>
+              </li>
+            `;
+        }).join('');
+
+        instructionContent.innerHTML = `<ul class="instruction-list">${items}</ul>`;
+    }
+
+    function loadHomeInstructions(area) {
+        const instructionContent = document.getElementById('instructionContent');
+        if (!instructionContent) return;
+        instructionContent.innerHTML = '<p class="empty-state">読み込み中...</p>';
+
+        fetch('/api/home_instructions?area=' + encodeURIComponent(area), {
+            headers: { 'Cache-Control': 'no-cache' },
+            cache: 'no-store'
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('invalid_area');
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            renderInstructions(data);
+        })
+        .catch(function() {
+            instructionContent.innerHTML = '<p class="empty-state">指示・発信情報の取得に失敗しました。時間をおいて再度お試しください。</p>';
+        });
+    }
+
+    const instructionAreaSelect = document.getElementById('instructionArea');
+    if (instructionAreaSelect) {
+        instructionAreaSelect.addEventListener('change', function(event) {
+            loadHomeInstructions(event.target.value);
+        });
+        loadHomeInstructions(instructionAreaSelect.value);
+    }
+
     function updateWeatherWarnings() {
-        fetch('/api/weather_warnings')
-            .then(response => response.json())
-            .then(data => {
-                console.log('気象情報を更新しました:', data);
-                updateWeatherContent(data);
-            })
-            .catch(error => {
-                console.error('気象情報の更新に失敗しました:', error);
-            });
+        fetch('/api/weather_warnings', {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            updateWeatherContent(data);
+        })
+        .catch(function() {
+            document.getElementById('weatherContent').innerHTML = '<p>気象情報の取得に失敗しました</p>';
+        });
     }
 
     function updateWeatherContent(data) {
         const weatherContent = document.getElementById('weatherContent');
+        if (!weatherContent) return;
 
-        if (data.error) {
+        if (data && data.error) {
             weatherContent.innerHTML = '<p>気象情報の取得に失敗しました</p>';
             return;
         }
 
         let warningsHtml = '';
-        if (data.warnings && data.warnings.length > 0) {
+        if (data && data.warnings && data.warnings.length > 0) {
             warningsHtml = '<ul>';
-            data.warnings.forEach(warning => {
-                warningsHtml += `<li>${warning.name}（${warning.status}）</li>`;
+            data.warnings.forEach(function(warning) {
+                warningsHtml += '<li>' + escapeHtml(warning.name) + '（' + escapeHtml(warning.status) + '）</li>';
             });
             warningsHtml += '</ul>';
         } else {
@@ -117,14 +296,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         weatherContent.innerHTML = `
-            <p class="weather-place"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${data.area_name || '青森市'}</p>
+            <p class="weather-place"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(data && data.area_name ? data.area_name : '青森市')}</p>
             ${warningsHtml}
-            <p class="weather-meta"><i class="fa-regular fa-clock" aria-hidden="true"></i> データ取得: <span id="lastFetchTime">${data.last_fetch_time || '更新中...'}</span></p>
-            <p class="weather-meta"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> 気象庁発表: ${data.report_time || '不明'}</p>
+            <p class="weather-meta"><i class="fa-regular fa-clock" aria-hidden="true"></i> データ取得: <span id="lastFetchTime">${escapeHtml(data && data.last_fetch_time ? data.last_fetch_time : '更新中...')}</span></p>
+            <p class="weather-meta"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i> 気象庁発表: ${escapeHtml(data && data.report_time ? data.report_time : '不明')}</p>
         `;
     }
 
-    // 初回表示＋10分（600,000ミリ秒）おきに自動更新
     updateWeatherWarnings();
     setInterval(updateWeatherWarnings, 600000);
 });

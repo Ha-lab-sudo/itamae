@@ -2,61 +2,308 @@
 
 {% block content %}
 <style>
-	.search-page {
-		width: min(980px, calc(100% - 32px));
-		margin: 34px auto 70px;
-	}
+    :root {
+        --search-bg: #f5f7fb;
+        --panel-bg: #ffffff;
+        --field-border: #c4cedb;
+        --field-focus: #f7c948;
+        --primary: #214d9a;
+        --primary-strong: #143d7b;
+        --text: #1d2733;
+        --muted: #5d6977;
+        --danger-bg: #fff1f1;
+        --danger-border: #d95f5f;
+        --danger-text: #a12020;
+    }
 
-	.search-page h2 { margin: 0 0 12px; color: var(--blue); }
-	.search-form {
-		display: flex;
-		align-items: end;
-		gap: 14px;
-		margin-top: 26px;
-		padding: 22px 24px;
-		border-radius: 12px;
-		background: var(--surface);
-		box-shadow: 0 6px 24px rgba(36, 68, 116, .08);
-	}
-	.search-form label { display: grid; gap: 7px; font-weight: 700; }
-	.search-form input {
-		width: min(360px, 65vw);
-		padding: 10px 12px;
-		border: 1px solid #b8c1cb;
-		border-radius: 4px;
-		font: inherit;
-	}
-	.search-button, .all-button {
-		display: inline-block;
-		padding: 10px 18px;
-		border: 1px solid var(--blue);
-		border-radius: 4px;
-		color: #fff;
-		background: var(--blue);
-		text-decoration: none;
-		cursor: pointer;
-		font: inherit;
-	}
-	.all-button { margin-top: 18px; color: var(--blue); background: #fff; }
+    .search-page {
+        width: min(760px, calc(100% - 22px));
+        margin: 20px auto 56px;
+        color: var(--text);
+    }
 
-	@media (max-width: 600px) {
-		.search-page { width: calc(100% - 20px); margin-top: 20px; }
-		.search-form { align-items: stretch; flex-direction: column; padding: 18px; }
-		.search-form input { width: 100%; }
-	}
+    .search-panel {
+        padding: 18px 16px 20px;
+        border: 1px solid #dde6f0;
+        border-radius: 16px;
+        background: var(--panel-bg);
+        box-shadow: 0 8px 22px rgba(31, 57, 91, 0.08);
+    }
+
+    .search-heading {
+        margin: 0 0 8px;
+        font-size: clamp(1.5rem, 4vw, 2rem);
+        color: var(--primary);
+    }
+
+    .search-subtitle {
+        margin: 0 0 18px;
+        font-size: 1rem;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .search-form {
+        display: grid;
+        gap: 18px;
+    }
+
+    .field-group {
+        display: grid;
+        gap: 8px;
+    }
+
+    .field-label {
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .field-label .required {
+        color: var(--danger-text);
+    }
+
+    .field-input, .field-select {
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 14px;
+        border: 2px solid var(--field-border);
+        border-radius: 10px;
+        font-size: 1rem;
+        color: var(--text);
+        background: #fff;
+    }
+
+    .field-input:focus, .field-select:focus, .check-item:focus-within,
+    .action-button:focus-visible, .ghost-button:focus-visible, .back-link:focus-visible {
+        outline: 4px solid var(--field-focus);
+        outline-offset: 2px;
+    }
+
+    .error-message {
+        display: block;
+        padding: 10px 12px;
+        border: 2px solid var(--danger-border);
+        border-radius: 10px;
+        background: var(--danger-bg);
+        color: var(--danger-text);
+        font-size: 0.97rem;
+        font-weight: 700;
+    }
+
+    .checkbox-list {
+        display: grid;
+        gap: 12px;
+        padding: 0;
+        list-style: none;
+    }
+
+    .check-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 48px;
+        padding: 10px 12px;
+        border: 2px solid #dbe3ee;
+        border-radius: 10px;
+        background: #f8fafc;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .check-item input {
+        width: 22px;
+        height: 22px;
+        accent-color: var(--primary);
+        flex-shrink: 0;
+    }
+
+    .button-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    .action-button,
+    .ghost-button,
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 12px 18px;
+        border: 2px solid transparent;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .back-link {
+        border-color: #cad5e2;
+        color: var(--text);
+        background: #eef4fb;
+    }
+
+    .action-button {
+        color: #fff;
+        background: var(--primary);
+    }
+
+    .ghost-button {
+        color: var(--primary-strong);
+        border-color: var(--primary);
+        background: #fff;
+    }
+
+    .button-spacer {
+        flex: 1;
+    }
+
+    @media (max-width: 600px) {
+        .search-page {
+            width: min(100%, calc(100% - 16px));
+            margin-top: 12px;
+            margin-bottom: 28px;
+        }
+
+        .search-panel {
+            padding: 16px 12px 18px;
+        }
+
+        .button-row {
+            display: grid;
+            gap: 10px;
+        }
+
+        .button-spacer {
+            display: none;
+        }
+
+        .back-link,
+        .ghost-button,
+        .action-button {
+            width: 100%;
+        }
+    }
 </style>
 
 <div class="search-page">
-	<h2>避難所検索</h2>
-	<p>地区名を入力して避難所を検索できます。</p>
+    <div class="search-panel">
+        <h2 class="search-heading">避難所検索</h2>
+        <p class="search-subtitle">避難の必要があるときでも、簡単に避難先を探せるようにご用意しています。</p>
 
-	<form class="search-form" action="/search_results" method="get">
-		<label for="district">地区名
-			<input type="search" id="district" name="district" placeholder="地区名を入力">
-		</label>
-		<button class="search-button" type="submit">検索</button>
-	</form>
+        {% if error_message %}
+            <div class="error-message" role="alert">{{ error_message }}</div>
+        {% endif %}
 
-	<a class="all-button" href="/all_shelters">全施設一覧</a>
+        <form class="search-form" method="get" action="/search_results" novalidate>
+            <div class="field-group">
+                <label class="field-label" for="area">
+                    エリア <span class="required">*</span>
+                </label>
+                <select class="field-select" id="area" name="area" required>
+                    <option value="">選択してください</option>
+                    <option value="北側" {% if area == '北側' %}selected{% endif %}>北側</option>
+                    <option value="南側" {% if area == '南側' %}selected{% endif %}>南側</option>
+                </select>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label" for="district">町名</label>
+                <select class="field-select" id="district" name="district">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+
+            <div class="field-group">
+                <span class="field-label">個別条件</span>
+                <ul class="checkbox-list">
+                    <li class="check-item">
+                        <input type="checkbox" id="pet_ok" name="pet_ok" value="1" {% if pet_ok == '1' %}checked{% endif %}>
+                        <label for="pet_ok">ペット同伴可</label>
+                    </li>
+                    <li class="check-item">
+                        <input type="checkbox" id="wheelchair_ok" name="wheelchair_ok" value="1" {% if wheelchair_ok == '1' %}checked{% endif %}>
+                        <label for="wheelchair_ok">車椅子対応可</label>
+                    </li>
+                    <li class="check-item">
+                        <input type="checkbox" id="multipurpose_toilet" name="multipurpose_toilet" value="1" {% if multipurpose_toilet == '1' %}checked{% endif %}>
+                        <label for="multipurpose_toilet">多目的トイレあり</label>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="button-row">
+                <a class="back-link" href="/">ホームに戻る</a>
+                <div class="button-spacer"></div>
+                <button class="ghost-button" type="reset" id="resetButton">リセット</button>
+                <button class="action-button" type="submit">検索</button>
+            </div>
+        </form>
+    </div>
 </div>
+
+<script>
+(function () {
+    const districtSelect = document.getElementById('district');
+    const areaSelect = document.getElementById('area');
+    const districtMap = {
+        '北側': ['青柳', '安方', '石江', '沖館', '篠田', '新町', '長島', '浪岡', '浜田', '古川', '本町', '三内', '八重田', '矢田前', '柳川'],
+        '南側': ['旭町', '大野', '幸畑', '筒井', '佃', '戸山', '浜田', '松森', '緑', '妙見', '横内', '青柳', '安方', '古川']
+    };
+    const initialOption = '<option value="">選択してください</option>';
+
+    function updateDistrictOptions() {
+        const area = areaSelect.value;
+        const currentValue = districtSelect.value;
+        const choices = area && districtMap[area] ? districtMap[area] : [];
+
+        districtSelect.innerHTML = initialOption + choices.map(function (value) {
+            return '<option value="' + value + '"' + (value === currentValue ? ' selected' : '') + '>' + value + '</option>';
+        }).join('');
+
+        if (!choices.includes(currentValue)) {
+            districtSelect.value = '';
+        }
+    }
+
+    function resetSearchForm() {
+        areaSelect.value = '';
+        districtSelect.innerHTML = initialOption;
+    }
+
+    areaSelect.addEventListener('change', updateDistrictOptions);
+    document.getElementById('resetButton').addEventListener('click', function () {
+        setTimeout(function () {
+            resetSearchForm();
+        }, 0);
+    });
+
+    const initialArea = areaSelect.value;
+    if (initialArea && districtMap[initialArea]) {
+        updateDistrictOptions();
+    } else {
+        districtSelect.innerHTML = initialOption;
+    }
+
+    document.querySelector('.search-form').addEventListener('submit', function (event) {
+        if (!areaSelect.value) {
+            event.preventDefault();
+            const errorBox = document.querySelector('.error-message');
+            if (errorBox) {
+                errorBox.remove();
+            }
+            const message = document.createElement('div');
+            message.className = 'error-message';
+            message.setAttribute('role', 'alert');
+            message.textContent = 'エリアを選択してください。';
+            this.insertBefore(message, this.firstChild);
+            areaSelect.focus();
+        }
+    });
+});
+</script>
 {% endblock %}

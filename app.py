@@ -145,9 +145,100 @@ def format_report_time(iso_str):
         return iso_str
 
 
-def filter_shelters(district=None):
-    """district 指定があれば一致する避難所のみ、なければ全件を返す"""
-    return [s for s in shelters if not district or s.get('district') == district]
+FILTER_KEYWORDS = {
+    'pets': ('pets', ('可', '対応', '可能', 'あり', '有', 'OK', 'pet', 'pets')),
+    'wheelchair': ('wheelchair', ('車椅子', '車いす', '対応', '可', 'あり', '有', 'OK', 'wheelchair')),
+    'toilet': ('toilet', ('多目的', 'トイレ', '対応', '可', 'あり', '有', 'OK')),
+}
+
+NEGATIVE_PATTERNS = (
+    '不可', 'なし', '無し', '不可能', '未対応', '無', 'N/A', '不適', '対象外'
+)
+
+
+def _matches_filter(shelter, filter_name):
+    """指定した施設条件が避難所データに含まれるか判定する"""
+    key, keywords = FILTER_KEYWORDS.get(filter_name, (None, ()))
+    if not key:
+        return True
+
+    value = shelter.get(key, '')
+    if value is None:
+        return False
+
+    text = str(value)
+    normalized = text.replace(' ', '').replace('　', '')
+    if any(pattern in normalized for pattern in NEGATIVE_PATTERNS):
+        return False
+
+    return any(keyword in normalized for keyword in keywords)
+
+
+def filter_shelters(district=None, active_filters=None, shelter_list=None):
+    """地区と条件で避難所を絞り込む。district は地区名、active_filters は ['pets', 'wheelchair'] のような条件一覧。"""
+    source = shelter_list if shelter_list is not None else shelters
+    selected_filters = [filter_name for filter_name in (active_filters or []) if filter_name]
+
+    def matches(shelter):
+        if district and shelter.get('district') != district:
+            return False
+        for filter_name in selected_filters:
+            if not _matches_filter(shelter, filter_name):
+                return False
+        return True
+
+    return [s for s in source if matches(s)]
+
+
+HOME_AREA_OPTIONS = (
+    {'value': '北', 'label': '北側'},
+    {'value': '南', 'label': '南側'},
+)
+HOME_AREA_ALIAS_MAP = {
+    '北': '北',
+    '北側': '北',
+    '南': '南',
+    '南側': '南',
+}
+HOME_URGENCY_PRIORITY = {'高': 0, '中': 1, '低': 2}
+INACTIVE_INSTRUCTION_STATUSES = {'解除', '完了', '終了', '停止', '無効'}
+
+
+def normalize_home_area(area):
+    """画面表示の地区名と内部値の両方を受け取り、正規化した地区名を返す"""
+    if area is None:
+        raise ValueError('area is required')
+    normalized = str(area).strip()
+    if not normalized:
+        raise ValueError('area is required')
+    normalized = HOME_AREA_ALIAS_MAP.get(normalized, normalized)
+    if normalized not in {'北', '南'}:
+        raise ValueError(f'unsupported area: {area}')
+    return normalized
+
+
+def get_home_instructions(area, source=None):
+    """住民向けの発信をエリア別に取得し、緊急度順に並べ替える"""
+    normalized_area = normalize_home_area(area)
+    items = source if source is not None else instructions
+    resident_items = []
+
+    for item in items:
+        if item.get('target') != '住民':
+            continue
+        item_area = str(item.get('area', '')).strip()
+        if HOME_AREA_ALIAS_MAP.get(item_area, item_area) != normalized_area:
+            continue
+        status = str(item.get('status', '')).strip()
+        if status in INACTIVE_INSTRUCTION_STATUSES:
+            continue
+        resident_items.append(item)
+
+    def urgency_rank(item):
+        urgency = str(item.get('urgency', '')).strip()
+        return HOME_URGENCY_PRIORITY.get(urgency, 99)
+
+    return sorted(resident_items, key=urgency_rank)
 
 
 def parse_area_warnings(warning_data):
@@ -243,7 +334,12 @@ def get_weather_warnings():
 @app.route('/')
 def index():
     resident_notices = [i for i in instructions if i.get('target') == '住民']
-    return render_template('index.html', resident_notices=resident_notices)
+    return render_template(
+        'index.html',
+        resident_notices=resident_notices,
+        area_options=HOME_AREA_OPTIONS,
+        shelters=shelters
+    )
 
 # ログインページ
 @app.route('/login', methods=['GET', 'POST'])
@@ -297,6 +393,7 @@ def shelter_register():
             )
 
         address = request.form.get('address', '').strip()
+        phone = request.form.get('phone', '').strip()
         latitude = request.form.get('latitude', '').strip()
         longitude = request.form.get('longitude', '').strip()
         if bool(latitude) != bool(longitude):
@@ -306,6 +403,7 @@ def shelter_register():
                 message='緯度と経度は両方入力してください',
                 registered_name=name,
                 registered_address=address,
+                registered_phone=phone,
                 registered_latitude=latitude,
                 registered_longitude=longitude
             )
@@ -313,6 +411,8 @@ def shelter_register():
         shelter = {'id': max((item.get('id', 0) for item in shelters), default=0) + 1, 'name': name}
         if address:
             shelter['address'] = address
+        if phone:
+            shelter['phone'] = phone
         if latitude and longitude:
             try:
                 latitude_value = float(latitude)
@@ -326,6 +426,7 @@ def shelter_register():
                     message='緯度または経度の値が正しくありません',
                     registered_name=name,
                     registered_address=address,
+                    registered_phone=phone,
                     registered_latitude=latitude,
                     registered_longitude=longitude
                 )
@@ -346,12 +447,29 @@ def shelter_register():
 # 避難所検索ページ
 @app.route('/shelter_search')
 def shelter_search():
-    return render_template('shelter_search.html')
+    active_filters = request.args.getlist('filters')
+    return render_template(
+        'shelter_search.html',
+        active_filters=active_filters,
+        area=request.args.get('area', ''),
+        district=request.args.get('district', ''),
+        pet_ok=request.args.get('pet_ok', ''),
+        wheelchair_ok=request.args.get('wheelchair_ok', ''),
+        multipurpose_toilet=request.args.get('multipurpose_toilet', ''),
+        error_message=request.args.get('error_message', '')
+    )
 
 # 全施設一覧ページ
 @app.route('/all_shelters')
 def all_shelters():
-    return render_template('search_results.html', results=shelters)
+    active_filters = request.args.getlist('filters')
+    results = filter_shelters(None, active_filters)
+    return render_template(
+        'search_results.html',
+        results=results,
+        district='',
+        active_filters=active_filters
+    )
 
 
 # 指示ボード：住民向けの指示を一覧で確認する
@@ -364,13 +482,37 @@ def board():
 # 検索結果ページ：templates/search_results.html を返す
 @app.route('/search_results')
 def search_results():
-    results = filter_shelters(request.args.get('district'))
-    return render_template('search_results.html', results=results)
+    district = request.args.get('district', '').strip()
+    area = request.args.get('area', '').strip()
+    pet_ok = request.args.get('pet_ok') == '1'
+    wheelchair_ok = request.args.get('wheelchair_ok') == '1'
+    multipurpose_toilet = request.args.get('multipurpose_toilet') == '1'
+
+    active_filters = []
+    if pet_ok:
+        active_filters.append('pets')
+    if wheelchair_ok:
+        active_filters.append('wheelchair')
+    if multipurpose_toilet:
+        active_filters.append('toilet')
+
+    results = filter_shelters(district or None, active_filters)
+    return render_template(
+        'search_results.html',
+        results=results,
+        district=district,
+        area=area,
+        pet_ok=pet_ok,
+        wheelchair_ok=wheelchair_ok,
+        multipurpose_toilet=multipurpose_toilet,
+        active_filters=active_filters,
+    )
 
 # JSON API：/shelters?district=地区名
 @app.route('/shelters', methods=['GET'])
 def get_shelters():
-    results = filter_shelters(request.args.get('district'))
+    district = request.args.get('district', '').strip()
+    results = filter_shelters(district or None, request.args.getlist('filters'))
 
     if not results:
         # 見つからなければエラー JSON を返す
@@ -383,7 +525,27 @@ def get_shelters():
 @app.route('/api/weather_warnings')
 def api_weather_warnings():
     """気象警報・注意報をJSON形式で返すAPI"""
-    return jsonify(get_weather_warnings())
+    response = jsonify(get_weather_warnings())
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+@app.route('/api/home_instructions')
+def api_home_instructions():
+    """住民向けの指示・発信をエリア別に返す"""
+    area = request.args.get('area', '').strip()
+    try:
+        normalized_area = normalize_home_area(area)
+        payload = {
+            'area': normalized_area,
+            'instructions': get_home_instructions(normalized_area)
+        }
+        return jsonify(payload)
+    except ValueError:
+        return jsonify({'error': 'invalid_area'}), 400
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
