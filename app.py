@@ -477,11 +477,16 @@ def logout():
 @app.route('/shelter_register', methods=['GET', 'POST'])
 @login_required
 def shelter_register():
+    address_base = request.form.get('address_base', '').strip()
+    address_detail = request.form.get('address_detail', '').strip()
+    if not address_base and not address_detail:
+        address_base = request.form.get('address', '').strip()
     form_values = {
         'registered_name': request.form.get('name', '').strip(),
         'registered_area': request.form.get('area', '').strip(),
         'registered_postal_code': request.form.get('postal_code', '').strip(),
-        'registered_address': request.form.get('address', '').strip(),
+        'registered_address_base': address_base,
+        'registered_address_detail': address_detail,
         'registered_contact': request.form.get('contact', '').strip(),
         'registered_conditions': request.form.getlist('response_conditions'),
         'registered_congestion': request.form.get('congestion', '').strip(),
@@ -505,7 +510,7 @@ def shelter_register():
             'name': name,
             'area': form_values['registered_area'],
             'postal_code': form_values['registered_postal_code'],
-            'address': form_values['registered_address'],
+            'address': ''.join((form_values['registered_address_base'], form_values['registered_address_detail'])),
             'contact': form_values['registered_contact'],
             'response_conditions': form_values['registered_conditions'],
             'congestion': form_values['registered_congestion'],

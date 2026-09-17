@@ -52,5 +52,62 @@
     "congestion": "満員",
     "opening_status": "受け入れ不可",
     "district": ""
+  },
+  {
+    "id": 12,
+    "name": "ハンバーグ寿司",
+    "area": "南側",
+    "postal_code": "038-1331",
+    "address": "青森県青森市浪岡女鹿沢平野１６１",
+    "contact": "",
+    "response_conditions": [],
+    "congestion": "やや混雑",
+    "opening_status": "受け入れ可",
+    "district": ""
+  },
+  {
+    "id": 13,
+    "name": "a",
+    "area": "北側",
+    "postal_code": "038-1331",
+    "address": "青森県青森市浪岡女鹿沢",
+    "contact": "",
+    "response_conditions": [],
+    "congestion": "空きあり",
+    "opening_status": "受け入れ可",
+    "district": "",
+    "latitude": 40.7032126,
+    "longitude": 140.5764606
+  },
+  {
+    "id": 14,
+    "name": "中とろ",
+    "area": "北側",
+    "postal_code": "038-1311",
+    "address": "青森県青森市浪岡浪岡五所１４−１",
+    "contact": "",
+    "response_conditions": [
+      "ペット同伴可"
+    ],
+    "congestion": "空きあり",
+    "opening_status": "受け入れ可",
+    "district": ""
+  },
+  {
+    "id": 15,
+    "name": "えんがわ",
+    "area": "北側",
+    "postal_code": "030-0155",
+    "address": "青森県青森市大谷",
+    "contact": "",
+    "response_conditions": [
+      "ペット同伴可",
+      "多目的トイレ等"
+    ],
+    "congestion": "空きあり",
+    "opening_status": "受け入れ可",
+    "district": "",
+    "latitude": 40.7409604,
+    "longitude": 140.6861106
   }
 ]

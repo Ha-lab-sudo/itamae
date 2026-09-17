@@ -67,6 +67,31 @@
         margin: 0 0 12px;
         padding: 0;
     }
+        .instruction-content {
+            display: grid;
+            gap: 6px;
+            line-height: 1.6;
+        }
+        .instruction-disaster {
+            color: var(--ink);
+            font-size: 18px;
+            font-weight: 800;
+        }
+        .instruction-shelter,
+        .instruction-message {
+            color: #34485f;
+        }
+        .instruction-shelter {
+            display: flex;
+            align-items: baseline;
+            gap: 7px;
+            font-weight: 700;
+        }
+        .instruction-shelter-label {
+            color: #34517d;
+            font-size: 13px;
+            font-weight: 800;
+        }
     .instruction-item.urgent .instruction-content,
     .instruction-item.urgent .instruction-label {
         color: #c11a1a;
@@ -217,14 +242,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const urgency = item.urgency || '未設定';
             const isUrgent = urgency === '高';
             const content = escapeHtml(item.content || '');
-            const shelter = item.shelter ? escapeHtml(item.shelter) : '';
+                const disaster = item.disaster ? escapeHtml(item.disaster) : '';
+                const shelter = item.shelter ? escapeHtml(item.shelter) : '';
+                const otherMessage = item.other_message ? escapeHtml(item.other_message) : '';
+                const structuredContent = disaster || shelter || otherMessage
+                    ? `${disaster ? `<div class="instruction-disaster">${disaster}</div>` : ''}${shelter ? `<div class="instruction-shelter"><span class="instruction-shelter-label">避難所</span><span>${shelter}</span></div>` : ''}${otherMessage ? `<div class="instruction-message">${otherMessage}</div>` : ''}`
+                    : content;
             const createdAt = item.created_at ? escapeHtml(item.created_at) : '';
             const urgencyText = escapeHtml(urgency);
                         const region = item.region || '';
                         const normalizedRegion = region.replaceAll('北部', '北側').replaceAll('南部', '南側');
             return `
               <li class="instruction-item ${isUrgent ? 'urgent' : ''}">
-                <div class="instruction-content">${content}${shelter ? `（避難先: ${shelter}）` : ''}</div>
+                                                                <div class="instruction-content">${structuredContent}</div>
                 <div class="instruction-meta">
                                     ${normalizedRegion ? `<span class="instruction-label">${escapeHtml(normalizedRegion)}</span>` : ''}
                   <span class="instruction-label">${urgencyText}</span>

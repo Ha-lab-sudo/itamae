@@ -55,12 +55,14 @@ class AppRouteTests(unittest.TestCase):
                     'name': '座標テスト避難所',
                     'area': '北側',
                     'postal_code': '030-0801',
-                    'address': '青森県青森市新町',
+                    'address_base': '青森県青森市新町',
+                    'address_detail': '1-1 青森市役所',
                     'congestion': '空きあり',
                     'opening_status': '受け入れ可',
                 })
             self.assertEqual(response.status_code, 200)
             self.assertEqual(app_module.shelters[-1]['postal_code'], '030-0801')
+            self.assertEqual(app_module.shelters[-1]['address'], '青森県青森市新町1-1 青森市役所')
             self.assertEqual(app_module.shelters[-1]['latitude'], 40.8244)
             self.assertEqual(app_module.shelters[-1]['longitude'], 140.74)
         finally:
