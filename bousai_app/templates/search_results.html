@@ -2,21 +2,116 @@
 
 {% block content %}
 <style>
-  .results-page { width: min(1000px, calc(100% - 32px)); margin: 0 auto 50px; }
-  .results-table-wrap { overflow-x: auto; }
-  .results-table { width: 100%; min-width: 1180px; border-collapse: collapse; color: #111; background: #fff; }
-  .results-table th, .results-table td { border: 1px solid #222; padding: 8px 10px; text-align: left; vertical-align: top; word-break: break-word; }
-  .results-table th { background: #d9d9d9; font-weight: 700; }
-  .distance-cell { font-weight: 700; white-space: nowrap; }
-  .route-link { display: inline-block; padding: 6px 9px; border: 1px solid #9aa7b5; border-radius: 4px; color: #5b6875; background: #f1f3f5; font-size: 13px; text-decoration: none; white-space: nowrap; }
-  .route-link.is-ready { border-color: var(--blue); color: #fff; background: var(--blue); }
-  .route-link.is-disabled { pointer-events: none; opacity: .7; }
-  .location-tools { display: flex; align-items: center; gap: 14px; margin: 0 0 18px; padding: 12px; border: 1px solid #dbe3ee; background: #f8fafc; }
-  .location-button { padding: 9px 16px; border: 1px solid var(--blue); border-radius: 4px; color: #fff; background: var(--blue); cursor: pointer; font: inherit; }
-  .location-status { margin: 0; color: #4c5b6b; font-size: 14px; }
-  .no-results { padding: 24px 0; color: #b00020; }
+  .results-page { width: min(1100px, calc(100% - 24px)); margin: 0 auto 50px; }
+  .results-table-wrap {
+    overflow-x: auto;
+    border: 2px solid #184d75;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(16, 42, 64, 0.10);
+  }
+  .results-table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: #1a2433;
+    background: #fff;
+    font-size: 16px;
+    table-layout: fixed;
+  }
+  .results-table th, .results-table td {
+    border: 1px solid #d9e3ef;
+    padding: 12px 10px;
+    text-align: left;
+    vertical-align: middle;
+    word-break: break-word;
+    line-height: 1.5;
+  }
+  .results-table thead th {
+    background: #214b70;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+  .results-table th:nth-child(1), .results-table td:nth-child(1) { width: 15%; }
+  .results-table th:nth-child(2), .results-table td:nth-child(2) { width: 7%; }
+  .results-table th:nth-child(3), .results-table td:nth-child(3) { width: 15%; }
+  .results-table th:nth-child(4), .results-table td:nth-child(4) { width: 9%; }
+  .results-table th:nth-child(5), .results-table td:nth-child(5) { width: 8%; }
+  .results-table th:nth-child(6), .results-table td:nth-child(6) { width: 8%; }
+  .results-table th:nth-child(7), .results-table td:nth-child(7) { width: 8%; }
+  .results-table th:nth-child(8), .results-table td:nth-child(8) { width: 9%; }
+  .results-table th:nth-child(9), .results-table td:nth-child(9) { width: 9%; }
+  .results-table th:nth-child(10), .results-table td:nth-child(10) { width: 12%; }
+  .results-table th:nth-child(11), .results-table td:nth-child(11) { width: 14%; }
+  .results-table tbody tr:nth-child(even) { background: #f6f9fc; }
+  .results-table tbody tr:nth-child(odd) { background: #ffffff; }
+  .results-table td:first-child { font-weight: 800; color: #102d47; }
+  .distance-cell {
+    font-weight: 800;
+    white-space: nowrap;
+    color: #0e4f8a;
+  }
+  .status-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .status-mark.is-open { background: #eafaf0; color: #0f8b4b; border: 2px solid #95d7ab; }
+  .status-mark.is-closed { background: #fdeceb; color: #d43a2c; border: 2px solid #f0a8a0; }
+  .status-mark.is-unknown { background: #eef3f8; color: #5b6d80; border: 2px solid #c3ceda; }
+  .congestion-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    color: #111111;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+  }
+  .route-link {
+    display: inline-block;
+    width: 100%;
+    max-width: 150px;
+    box-sizing: border-box;
+    padding: 8px 6px;
+    border: 1px solid #99afd0;
+    border-radius: 999px;
+    color: #163c5f;
+    background: #edf5ff;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .route-link.is-ready { border-color: #0b6bbd; color: #fff; background: #0b6bbd; }
+  .route-link.is-disabled { pointer-events: none; opacity: .75; }
+  .location-tools { display: flex; align-items: center; gap: 14px; margin: 0 0 18px; padding: 12px; border: 2px solid #d9e7f5; border-radius: 12px; background: #f4faff; }
+  .location-button { padding: 11px 18px; border: 1px solid #0d5d9f; border-radius: 10px; color: #fff; background: #0d5d9f; cursor: pointer; font: inherit; font-weight: 700; }
+  .location-status { margin: 0; color: #35506b; font-size: 15px; line-height: 1.5; }
+  .no-results { padding: 24px 0; color: #b00020; font-weight: 700; }
   .filter-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 20px; padding: 16px 18px; border: 1px solid #d8e1ee; border-radius: 12px; background: #f4f8fc; }
-  .filter-label-group { font-weight: 700; color: #2d3e50; }.filter-list { display: flex; flex-wrap: wrap; gap: 8px; }.filter-chip { display: inline-flex; align-items: center; padding: 8px 12px; border: 1px solid #c1d0df; border-radius: 999px; background: #fff; color: #2b415b; font-weight: 600; cursor: pointer; }.filter-chip input { margin: 0 7px 0 0; }.filter-chip.is-active { border-color: var(--blue); background: #eaf1ff; }.search-button { padding: 9px 16px; border: 1px solid var(--blue); border-radius: 4px; color: #fff; background: var(--blue); cursor: pointer; font: inherit; }.results-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 40px; }.results-actions a { color: #222; }.home-button { padding: 8px 24px; border: 1px solid #aaa; color: #222; background: #d9d9d9; text-decoration: none; }
+  .filter-label-group { font-weight: 800; color: #2d3e50; }
+  .filter-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filter-chip { display: inline-flex; align-items: center; padding: 8px 12px; border: 1px solid #c1d0df; border-radius: 999px; background: #fff; color: #2b415b; font-weight: 700; cursor: pointer; }
+  .filter-chip input { margin: 0 7px 0 0; }
+  .filter-chip.is-active { border-color: #0d5d9f; background: #eaf1ff; }
+  .search-button { padding: 10px 18px; border: 1px solid #0d5d9f; border-radius: 10px; color: #fff; background: #0d5d9f; cursor: pointer; font: inherit; font-weight: 700; }
+  .results-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 40px; font-size: 16px; }
+  .results-actions a { color: #1a2433; }
+  .home-button { padding: 10px 22px; border: 1px solid #9aa8b7; border-radius: 10px; color: #1a2433; background: #e8edf3; text-decoration: none; font-weight: 700; }
   @media (max-width: 600px) { .results-page { width: calc(100% - 20px); }.location-tools { align-items: flex-start; flex-direction: column; }.results-actions { margin-top: 28px; } }
 </style>
 <div class="results-page">
@@ -24,7 +119,7 @@
   <form class="filter-form" action="/search_results" method="get">
     {% if area %}<input type="hidden" name="area" value="{{ area }}">{% endif %}{% if district %}<input type="hidden" name="district" value="{{ district }}">{% endif %}<div class="filter-label-group">条件で絞り込む</div><div class="filter-list"><label class="filter-chip {% if 'pets' in active_filters %}is-active{% endif %}"><input type="checkbox" name="filters" value="pets" {% if 'pets' in active_filters %}checked{% endif %}>ペット可</label><label class="filter-chip {% if 'wheelchair' in active_filters %}is-active{% endif %}"><input type="checkbox" name="filters" value="wheelchair" {% if 'wheelchair' in active_filters %}checked{% endif %}>車椅子対応</label><label class="filter-chip {% if 'toilet' in active_filters %}is-active{% endif %}"><input type="checkbox" name="filters" value="toilet" {% if 'toilet' in active_filters %}checked{% endif %}>多目的トイレ</label><label class="filter-chip {% if 'exclude_full' in active_filters %}is-active{% endif %}"><input type="checkbox" name="filters" value="exclude_full" {% if 'exclude_full' in active_filters %}checked{% endif %}>満員を除く</label></div><button class="search-button" type="submit">条件で絞り込む</button>
   </form>
-  {% if results %}<div class="results-table-wrap"><table class="results-table"><thead><tr><th>避難所名</th><th>エリア</th><th>住所</th><th>連絡先</th><th>混雑状況</th><th>開設状況</th><th>ペット可否</th><th>車椅子対応</th><th>多目的トイレ</th><th>現在地からの距離</th><th>ルート案内</th></tr></thead><tbody>{% for shelter in results %}<tr data-latitude="{{ shelter.get('latitude', '') }}" data-longitude="{{ shelter.get('longitude', '') }}"><td>{{ shelter.get('name', '—') }}</td><td>{{ shelter.get('area', '—') }}</td><td>{{ shelter.get('address', '—') }}</td><td>{{ shelter.get('contact') or shelter.get('phone') or '—' }}</td><td>{{ shelter.get('congestion', '—') }}</td><td>{{ shelter.get('opening_status', '—') }}</td><td>{% if shelter.get('pets') %}{{ shelter.get('pets') }}{% elif 'ペット同伴可' in shelter.get('response_conditions', []) %}可{% else %}—{% endif %}</td><td>{% if shelter.get('wheelchair') %}{{ shelter.get('wheelchair') }}{% elif '車椅子対応' in shelter.get('response_conditions', []) %}対応{% else %}—{% endif %}</td><td>{% if shelter.get('toilet') %}{{ shelter.get('toilet') }}{% elif '多目的トイレ等' in shelter.get('response_conditions', []) %}あり{% else %}—{% endif %}</td><td class="distance-cell">—</td><td><a class="route-link is-disabled" data-destination="{{ shelter.get('address', shelter.get('name', '')) }}" href="#" aria-disabled="true">現在地が必要</a></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="no-results">該当する避難所が見つかりませんでした</p>{% endif %}
+  {% if results %}<div class="results-table-wrap"><table class="results-table"><thead><tr><th>避難所名</th><th>エリア</th><th>住所</th><th>連絡先</th><th>混雑状況</th><th>開設状況</th><th>ペット可否</th><th>車椅子対応</th><th>多目的トイレ</th><th>現在地からの距離</th><th>ルート案内</th></tr></thead><tbody>{% for shelter in results %}<tr data-latitude="{{ shelter.get('latitude', '') }}" data-longitude="{{ shelter.get('longitude', '') }}"><td>{{ shelter.get('name', '—') }}</td><td>{{ shelter.get('area', '—') }}</td><td>{{ shelter.get('address', '—') }}</td><td>{{ shelter.get('contact') or shelter.get('phone') or '—' }}</td><td>{% set congestion = shelter.get('congestion', '') %}{% if '空き' in congestion or '少ない' in congestion or '少し' in congestion %}<span class="congestion-mark" title="{{ congestion }}">○</span>{% elif 'やや' in congestion or '中' in congestion %}<span class="congestion-mark" title="{{ congestion }}">△</span>{% elif '満員' in congestion or '混雑' in congestion or '多い' in congestion %}<span class="congestion-mark" title="{{ congestion }}">×</span>{% else %}<span class="congestion-mark" title="{{ congestion or '不明' }}">－</span>{% endif %}</td><td>{% set opening_status = shelter.get('opening_status', '') %}{% if opening_status and '不可' not in opening_status and '停止' not in opening_status and '終了' not in opening_status %}<span class="status-mark is-open" title="{{ opening_status }}">○</span>{% elif opening_status %}<span class="status-mark is-closed" title="{{ opening_status }}">×</span>{% else %}<span class="status-mark is-unknown" title="不明">―</span>{% endif %}</td><td>{% if shelter.get('pets') %}{{ shelter.get('pets') }}{% elif 'ペット同伴可' in shelter.get('response_conditions', []) %}可{% else %}—{% endif %}</td><td>{% if shelter.get('wheelchair') %}{{ shelter.get('wheelchair') }}{% elif '車椅子対応' in shelter.get('response_conditions', []) %}対応{% else %}—{% endif %}</td><td>{% if shelter.get('toilet') %}{{ shelter.get('toilet') }}{% elif '多目的トイレ等' in shelter.get('response_conditions', []) %}あり{% else %}—{% endif %}</td><td class="distance-cell">—</td><td><a class="route-link is-disabled" data-destination="{{ shelter.get('address', shelter.get('name', '')) }}" href="#" aria-disabled="true">現在地が必要</a></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="no-results">該当する避難所が見つかりませんでした</p>{% endif %}
   <div class="results-actions"><a class="home-button" href="/">ホームに戻る</a><a href="/shelter_search">検索画面に戻る</a></div>
 </div>
 <script>
