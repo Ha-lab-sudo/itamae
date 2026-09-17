@@ -89,23 +89,32 @@
         margin: 0;
         color: #4c5b6b;
     }
+    .usage-card {
+        margin-top: 28px;
+        margin-bottom: 24px;
+        padding: 0 4px;
+        background: transparent;
+        box-shadow: none;
+    }
     .usage-panel {
-        background: #fff;
-        border: 1px solid #edf1f5;
+        background: transparent;
+        border: 0;
     }
     .usage-panel h3 {
-        margin: 0 0 14px;
-        color: var(--ink);
-        font-size: 22px;
+        margin: 0 0 6px;
+        color: #222;
+        font-size: 14px;
+        font-weight: 700;
     }
     .usage-panel ul {
         margin: 0;
-        padding-left: 1.2rem;
-        color: #1c2430;
+        padding-left: 1rem;
+        color: #222;
+        font-size: 12px;
     }
     .usage-panel li {
-        margin-bottom: 10px;
-        line-height: 1.7;
+        margin-bottom: 3px;
+        line-height: 1.5;
     }
 
     @media (max-width: 600px) {
@@ -120,7 +129,7 @@
 </style>
 
 <div class="home">
-    <section class="home-card">
+    <section class="home-card usage-card">
         <h2 class="section-heading"><i class="fa-solid fa-location-dot heading-icon map-heading-icon" aria-hidden="true"></i>避難所マップ</h2>
         <div id="shelterMap" aria-label="青森市の避難所マップ"></div>
     </section>
@@ -132,7 +141,7 @@
                 <label for="instructionArea" class="sr-only" style="position:absolute;left:-9999px;">地域選択</label>
                 <select id="instructionArea" class="instruction-select" aria-label="発信地域を選択">
                     {% for option in area_options %}
-                        <option value="{{ option.value }}" {% if option.value == '北' %}selected{% endif %}>{{ option.label }}</option>
+                        <option value="{{ option.value }}" {% if option.value == '' %}selected{% endif %}>{{ option.label }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -143,7 +152,7 @@
     <section class="home-card">
         <h2 class="section-heading weather-heading">
             <span><i class="fa-solid fa-cloud-sun heading-icon weather-heading-icon" aria-hidden="true"></i> 気象警報・注意報</span>
-            <span class="refresh-label"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> 10分おき自動更新</span>
+            <button class="refresh-label" id="weatherRefreshButton" type="button"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> 最新情報を取得</button>
         </h2>
         <div id="weatherContent" class="weather-panel">
             <p>読み込み中...</p>
@@ -167,26 +176,21 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const shelterMap = L.map('shelterMap').setView([40.8244, 140.7400], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        referrerPolicy: 'strict-origin-when-cross-origin'
-    }).addTo(shelterMap);
-
     const shelterData = {{ shelters | tojson | safe }};
-    shelterData.forEach(function(shelter) {
-        if (shelter && Number.isFinite(Number(shelter.latitude)) && Number.isFinite(Number(shelter.longitude))) {
-            const marker = L.marker([Number(shelter.latitude), Number(shelter.longitude)]).addTo(shelterMap);
-            const popupHtml = `
-                <div>
-                    <strong>${(shelter.name || '避難所')}</strong><br>
-                    ${shelter.address || '住所未設定'}<br>
-                    混雑状況: ${shelter.congestion || '不明'}
-                </div>
-            `;
-            marker.bindPopup(popupHtml);
-        }
-    });
+    if (typeof L !== 'undefined') {
+        const shelterMap = L.map('shelterMap').setView([40.8244, 140.7400], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            referrerPolicy: 'strict-origin-when-cross-origin'
+        }).addTo(shelterMap);
+        shelterData.forEach(function(shelter) {
+            if (shelter && Number.isFinite(Number(shelter.latitude)) && Number.isFinite(Number(shelter.longitude))) {
+                L.marker([Number(shelter.latitude), Number(shelter.longitude)]).addTo(shelterMap).bindPopup(escapeHtml(shelter.name || '避難所'));
+            }
+        });
+    } else {
+        document.getElementById('shelterMap').textContent = '地図を読み込めませんでした。避難所検索から施設情報を確認できます。';
+    }
 
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, function(match) {
@@ -216,10 +220,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const shelter = item.shelter ? escapeHtml(item.shelter) : '';
             const createdAt = item.created_at ? escapeHtml(item.created_at) : '';
             const urgencyText = escapeHtml(urgency);
+                        const region = item.region || '';
+                        const normalizedRegion = region.replaceAll('北部', '北側').replaceAll('南部', '南側');
             return `
               <li class="instruction-item ${isUrgent ? 'urgent' : ''}">
                 <div class="instruction-content">${content}${shelter ? `（避難先: ${shelter}）` : ''}</div>
                 <div class="instruction-meta">
+                                    ${normalizedRegion ? `<span class="instruction-label">${escapeHtml(normalizedRegion)}</span>` : ''}
                   <span class="instruction-label">${urgencyText}</span>
                   ${createdAt ? ` <span>発信日時: ${createdAt}</span>` : ''}
                 </div>
@@ -304,6 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     updateWeatherWarnings();
+    document.getElementById('weatherRefreshButton').addEventListener('click', updateWeatherWarnings);
     setInterval(updateWeatherWarnings, 600000);
 });
 </script>

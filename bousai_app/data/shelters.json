@@ -1,22 +1,56 @@
 [
   {
-    "id": 1,
-    "name": "御所見小学校"
+    "id": 8,
+    "name": "いたまえ",
+    "area": "北側",
+    "address": "〒030-0155 青森県青森市大谷小谷１−５",
+    "contact": "017-123-6893",
+    "response_conditions": [
+      "ペット同伴可"
+    ],
+    "congestion": "空きあり",
+    "opening_status": "受け入れ可",
+    "district": ""
   },
   {
-    "id": 2,
-    "name": "片瀬小学校"
+    "id": 9,
+    "name": "みならい",
+    "area": "北側",
+    "address": "〒038-0021 青森県青森市安田近野１８５",
+    "contact": "090-1234-5678",
+    "response_conditions": [
+      "ペット同伴可",
+      "車椅子対応",
+      "多目的トイレ等"
+    ],
+    "congestion": "やや混雑",
+    "opening_status": "受け入れ可",
+    "district": ""
   },
   {
-    "id": 5,
-    "name": "鵠洋小学校"
+    "id": 10,
+    "name": "まぐろ",
+    "area": "南側",
+    "postal_code": "038-0021",
+    "address": "青森県青森市安田",
+    "contact": "",
+    "response_conditions": [],
+    "congestion": "空きあり",
+    "opening_status": "受け入れ可",
+    "district": "",
+    "latitude": 40.8039345,
+    "longitude": 140.7131252
   },
   {
-    "id": 6,
-    "name": "○○避難所"
-  },
-  {
-    "id": 7,
-    "name": "○○避難所"
+    "id": 11,
+    "name": "はまち",
+    "area": "北側",
+    "postal_code": "",
+    "address": "",
+    "contact": "",
+    "response_conditions": [],
+    "congestion": "満員",
+    "opening_status": "受け入れ不可",
+    "district": ""
   }
 ]

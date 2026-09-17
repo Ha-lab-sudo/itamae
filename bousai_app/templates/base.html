@@ -85,7 +85,7 @@
 </head>
 <body>
   <header class="app-header">
-    <h1 class="app-title">防災アプリ</h1>
+    <h1 class="app-title">{% block header_title %}防災アプリ{% endblock %}</h1>
     <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false" aria-controls="mainMenu">☰</button>
     <nav id="mainMenu" class="menu-panel" aria-label="メインメニュー">
       <a href="/">ホーム</a>

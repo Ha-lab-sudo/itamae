@@ -101,6 +101,7 @@
     margin: 0 7px 0 0;
     transform: translateY(1px);
   }
+  .filter-chip.is-active { border-color: var(--blue); background: #eaf1ff; }
   .search-button {
     display: inline-block;
     padding: 9px 16px;
@@ -134,12 +135,10 @@
 </style>
 
 <div class="results-page">
-  <div class="location-tools">
-    <button class="location-button" id="locationButton" type="button">現在地を取得してルート案内</button>
-    <p class="location-status" id="locationStatus">ボタンを押すと、現在地から各避難所への徒歩ルートを開けます。</p>
-  </div>
-
   <form class="filter-form" action="/search_results" method="get">
+    {% if area %}
+      <input type="hidden" name="area" value="{{ area }}">
+    {% endif %}
     {% if district %}
       <input type="hidden" name="district" value="{{ district }}">
     {% endif %}
@@ -147,17 +146,21 @@
       <span>条件で絞り込む</span>
     </div>
     <div class="filter-list">
-      <label class="filter-chip">
+      <label class="filter-chip {% if 'pets' in active_filters %}is-active{% endif %}">
         <input type="checkbox" name="filters" value="pets" {% if 'pets' in active_filters %}checked{% endif %}>
         <span>ペット可</span>
       </label>
-      <label class="filter-chip">
+      <label class="filter-chip {% if 'wheelchair' in active_filters %}is-active{% endif %}">
         <input type="checkbox" name="filters" value="wheelchair" {% if 'wheelchair' in active_filters %}checked{% endif %}>
         <span>車椅子対応</span>
       </label>
-      <label class="filter-chip">
+      <label class="filter-chip {% if 'toilet' in active_filters %}is-active{% endif %}">
         <input type="checkbox" name="filters" value="toilet" {% if 'toilet' in active_filters %}checked{% endif %}>
         <span>多目的トイレ</span>
+      </label>
+      <label class="filter-chip {% if 'exclude_full' in active_filters %}is-active{% endif %}">
+        <input type="checkbox" name="filters" value="exclude_full" {% if 'exclude_full' in active_filters %}checked{% endif %}>
+        <span>満員を除く</span>
       </label>
     </div>
     <button class="search-button" type="submit">条件で絞り込む</button>
@@ -169,9 +172,11 @@
       <thead>
         <tr>
           <th>避難所名</th>
+          <th>エリア</th>
           <th>住所</th>
           <th>連絡先</th>
           <th>混雑状況</th>
+          <th>開設状況</th>
           <th>ペット可否</th>
           <th>車椅子対応</th>
           <th>多目的トイレ</th>
@@ -183,12 +188,14 @@
         {% for shelter in results %}
         <tr data-latitude="{{ shelter.get('latitude', '') }}" data-longitude="{{ shelter.get('longitude', '') }}">
           <td>{{ shelter.get('name', '—') }}</td>
+          <td>{{ shelter.get('area', '—') }}</td>
           <td>{{ shelter.get('address', '—') }}</td>
-          <td>{{ shelter.get('phone', '—') }}</td>
+          <td>{{ shelter.get('contact', shelter.get('phone', '—')) }}</td>
           <td>{{ shelter.get('congestion', '—') }}</td>
-          <td>{{ shelter.get('pets', '—') }}</td>
-          <td>{{ shelter.get('wheelchair', '—') }}</td>
-          <td>{{ shelter.get('toilet', '—') }}</td>
+          <td>{{ shelter.get('opening_status', '—') }}</td>
+          <td>{% if shelter.get('pets') %}{{ shelter.get('pets') }}{% elif 'ペット同伴可' in shelter.get('response_conditions', []) %}可{% else %}—{% endif %}</td>
+          <td>{% if shelter.get('wheelchair') %}{{ shelter.get('wheelchair') }}{% elif '車椅子対応' in shelter.get('response_conditions', []) %}対応{% else %}—{% endif %}</td>
+          <td>{% if shelter.get('toilet') %}{{ shelter.get('toilet') }}{% elif '多目的トイレ等' in shelter.get('response_conditions', []) %}あり{% else %}—{% endif %}</td>
           <td class="distance-cell">—</td>
           <td>
             <a class="route-link is-disabled"
@@ -212,8 +219,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const locationButton = document.getElementById('locationButton');
-  const locationStatus = document.getElementById('locationStatus');
   const routeLinks = document.querySelectorAll('.route-link');
   const resultBody = document.querySelector('.results-table tbody');
   const earthRadiusKm = 6371;
@@ -229,18 +234,9 @@ document.addEventListener('DOMContentLoaded', function() {
     return earthRadiusKm * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
   }
 
-  locationButton.addEventListener('click', function() {
-    if (!navigator.geolocation) {
-      locationStatus.textContent = 'このブラウザは位置情報に対応していません。';
-      return;
-    }
-
-    locationButton.disabled = true;
-    locationButton.textContent = '現在地を取得中...';
-    locationStatus.textContent = '位置情報の利用を許可してください。';
-
-    navigator.geolocation.getCurrentPosition(function(position) {
-      const origin = `${position.coords.latitude},${position.coords.longitude}`;
+  function applySavedLocation(location) {
+      if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) return;
+      const origin = `${location.latitude},${location.longitude}`;
       const rows = resultBody ? Array.from(resultBody.querySelectorAll('tr')) : [];
       let locatedShelterCount = 0;
 
@@ -255,8 +251,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const distance = calculateDistanceKm(
-          position.coords.latitude,
-          position.coords.longitude,
+          Number(location.latitude),
+          Number(location.longitude),
           latitude,
           longitude
         );
@@ -295,20 +291,14 @@ document.addEventListener('DOMContentLoaded', function() {
         link.rel = 'noopener noreferrer';
       });
 
-      locationButton.disabled = false;
-      locationButton.textContent = '現在地を更新';
-      locationStatus.textContent = locatedShelterCount > 0
-        ? `現在地から近い順に並べました（距離情報あり ${locatedShelterCount}件）。`
-        : '現在地は取得しましたが、距離計算用の座標が登録された避難所がありません。';
-    }, function(error) {
-      const message = error.code === 1
-        ? '位置情報の利用が許可されませんでした。'
-        : '現在地を取得できませんでした。時間をおいて再度お試しください。';
-      locationButton.disabled = false;
-      locationButton.textContent = '現在地を取得してルート案内';
-      locationStatus.textContent = message;
-    }, { enableHighAccuracy: true, timeout: 10000 });
-  });
+  }
+
+  try {
+    const savedLocation = JSON.parse(localStorage.getItem('bousai.currentLocation') || 'null');
+    applySavedLocation(savedLocation);
+  } catch (error) {
+    localStorage.removeItem('bousai.currentLocation');
+  }
 });
 </script>
 {% endblock %}

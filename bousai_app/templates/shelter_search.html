@@ -162,6 +162,29 @@
         flex: 1;
     }
 
+    .location-tools {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 18px;
+        padding: 12px;
+        border: 1px solid #dbe3ee;
+        background: #f8fafc;
+    }
+    .location-button {
+        min-height: 44px;
+        padding: 9px 14px;
+        border: 0;
+        border-radius: 6px;
+        color: #fff;
+        background: var(--primary);
+        font: inherit;
+        cursor: pointer;
+    }
+    .location-status { margin: 0; color: var(--muted); font-size: .9rem; }
+    .location-address { margin: 4px 0 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+    .current-address-note { margin: 0; color: var(--muted); font-size: .85rem; }
+
     @media (max-width: 600px) {
         .search-page {
             width: min(100%, calc(100% - 16px));
@@ -187,13 +210,22 @@
         .action-button {
             width: 100%;
         }
+
+        .location-tools { align-items: stretch; flex-direction: column; }
+        .location-button { width: 100%; }
     }
 </style>
 
 <div class="search-page">
     <div class="search-panel">
         <h2 class="search-heading">避難所検索</h2>
-        <p class="search-subtitle">避難の必要があるときでも、簡単に避難先を探せるようにご用意しています。</p>
+        <div class="location-tools">
+            <button class="location-button" id="searchLocationButton" type="button">現在地を取得</button>
+            <div>
+                <p class="location-status" id="searchLocationStatus">現在地を取得すると、検索結果で距離とルート案内を利用できます。</p>
+                <p class="location-address" id="searchLocationAddress"></p>
+            </div>
+        </div>
 
         {% if error_message %}
             <div class="error-message" role="alert">{{ error_message }}</div>
@@ -216,6 +248,12 @@
                 <select class="field-select" id="district" name="district">
                     <option value="">選択してください</option>
                 </select>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label" for="current_address">現在住所</label>
+                <input class="field-input" type="text" id="current_address" name="current_address" autocomplete="street-address" placeholder="現在地取得または住所を入力" value="">
+                <p class="current-address-note">入力した住所を基準に、近い避難所から表示します。</p>
             </div>
 
             <div class="field-group">
@@ -250,6 +288,11 @@
 (function () {
     const districtSelect = document.getElementById('district');
     const areaSelect = document.getElementById('area');
+    const locationButton = document.getElementById('searchLocationButton');
+    const locationStatus = document.getElementById('searchLocationStatus');
+    const locationAddress = document.getElementById('searchLocationAddress');
+    const currentAddress = document.getElementById('current_address');
+    const searchForm = document.querySelector('.search-form');
     const districtMap = {
         '北側': ['青柳', '安方', '石江', '沖館', '篠田', '新町', '長島', '浪岡', '浜田', '古川', '本町', '三内', '八重田', '矢田前', '柳川'],
         '南側': ['旭町', '大野', '幸畑', '筒井', '佃', '戸山', '浜田', '松森', '緑', '妙見', '横内', '青柳', '安方', '古川']
@@ -273,6 +316,8 @@
     function resetSearchForm() {
         areaSelect.value = '';
         districtSelect.innerHTML = initialOption;
+        currentAddress.value = '';
+        localStorage.removeItem('bousai.currentLocation');
     }
 
     areaSelect.addEventListener('change', updateDistrictOptions);
@@ -289,7 +334,7 @@
         districtSelect.innerHTML = initialOption;
     }
 
-    document.querySelector('.search-form').addEventListener('submit', function (event) {
+    searchForm.addEventListener('submit', function (event) {
         if (!areaSelect.value) {
             event.preventDefault();
             const errorBox = document.querySelector('.error-message');
@@ -302,8 +347,110 @@
             message.textContent = 'エリアを選択してください。';
             this.insertBefore(message, this.firstChild);
             areaSelect.focus();
+            return;
         }
+
+        const address = currentAddress.value.trim();
+        if (!address) {
+            localStorage.removeItem('bousai.currentLocation');
+            return;
+        }
+
+        let savedLocation = null;
+        try { savedLocation = JSON.parse(localStorage.getItem('bousai.currentLocation') || 'null'); } catch (error) {}
+        if (savedLocation && savedLocation.address === address
+            && Number.isFinite(Number(savedLocation.latitude))
+            && Number.isFinite(Number(savedLocation.longitude))) return;
+
+        event.preventDefault();
+        locationStatus.textContent = '住所を確認中...';
+        fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q=' + encodeURIComponent(address), {
+            headers: { 'Accept-Language': 'ja' }
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (!data || !data[0]) throw new Error('住所が見つかりません');
+                localStorage.setItem('bousai.currentLocation', JSON.stringify({
+                    latitude: Number(data[0].lat),
+                    longitude: Number(data[0].lon),
+                    address: address
+                }));
+                searchForm.submit();
+            })
+            .catch(function () {
+                locationStatus.textContent = '現在住所を確認できませんでした。住所を見直してください。';
+            });
     });
+
+    locationButton.addEventListener('click', function () {
+        if (!navigator.geolocation) {
+            locationStatus.textContent = 'このブラウザは位置情報に対応していません。';
+            return;
+        }
+        if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            locationStatus.textContent = '現在地取得にはHTTPS接続が必要です。HTTPSまたはlocalhostで開いてください。';
+            return;
+        }
+        locationButton.disabled = true;
+        locationButton.textContent = '現在地を取得中...';
+        navigator.geolocation.getCurrentPosition(function (position) {
+            const location = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                address: ''
+            };
+            localStorage.setItem('bousai.currentLocation', JSON.stringify(location));
+            locationAddress.textContent = '住所を取得中...';
+            getAddressFromCoordinates(location.latitude, location.longitude)
+                .then(function (address) {
+                    locationAddress.textContent = '現在地: ' + address;
+                    location.address = address;
+                    currentAddress.value = address;
+                    localStorage.setItem('bousai.currentLocation', JSON.stringify(location));
+                    locationStatus.textContent = '現在地を取得しました。検索後に距離とルート案内を利用できます。';
+                })
+                .catch(function () {
+                    locationAddress.textContent = '現在地の住所を取得できませんでした。';
+                    locationStatus.textContent = '現在地を取得しました。住所は手入力できます。';
+                })
+                .then(function () {
+                    locationButton.disabled = false;
+                    locationButton.textContent = '現在地を更新';
+                });
+        }, function (error) {
+            locationButton.disabled = false;
+            locationButton.textContent = '現在地を取得';
+            if (error && error.code === error.PERMISSION_DENIED) {
+                locationStatus.textContent = '位置情報の利用が拒否されています。ブラウザのサイト設定で許可してください。';
+            } else if (error && error.code === error.POSITION_UNAVAILABLE) {
+                locationStatus.textContent = '現在地を取得できませんでした。GPSや位置情報サービスを確認してください。';
+            } else if (error && error.code === error.TIMEOUT) {
+                locationStatus.textContent = '現在地の取得がタイムアウトしました。もう一度お試しください。';
+            } else {
+                locationStatus.textContent = '現在地を取得できませんでした。時間をおいて再度お試しください。';
+            }
+        });
+    });
+
+    function getAddressFromCoordinates(latitude, longitude) {
+        return fetch('/api/reverse-geocode?latitude=' + encodeURIComponent(latitude) + '&longitude=' + encodeURIComponent(longitude))
+            .then(function (response) {
+                if (!response.ok) throw new Error('住所の取得に失敗しました');
+                return response.json();
+            })
+            .then(function (data) {
+                if (!data || !data.address) throw new Error('住所が見つかりません');
+                return data.address;
+            });
+    }
+
+    try {
+        const savedLocation = JSON.parse(localStorage.getItem('bousai.currentLocation') || 'null');
+        if (savedLocation && savedLocation.address) {
+            currentAddress.value = savedLocation.address;
+            locationAddress.textContent = '現在地: ' + savedLocation.address;
+        }
+    } catch (error) { localStorage.removeItem('bousai.currentLocation'); }
 });
 </script>
 {% endblock %}

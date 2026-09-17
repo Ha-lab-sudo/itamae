@@ -11,14 +11,13 @@
 {% endif %}
 
 <form method="post">
-  <!-- リダイレクト先URLを保持 -->
   {% if next %}
     <input type="hidden" name="next" value="{{ next }}">
   {% endif %}
 
   <p>
-    <label for="password">パスワード（「123」と入力してください）</label><br>
-    <input type="password" id="password" name="password" required>
+    <label for="password">パスワード</label><br>
+    <input type="password" id="password" name="password" autocomplete="current-password" required>
   </p>
 
   <p><button type="submit">ログイン</button></p>

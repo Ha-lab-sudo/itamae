@@ -20,6 +20,21 @@ class FilterSheltersTests(unittest.TestCase):
             ['A', 'B']
         )
 
+    def test_filters_registered_conditions_and_excludes_full_shelters(self):
+        shelters = [
+            {'name': 'ペット施設', 'response_conditions': ['ペット同伴可'], 'congestion': '空きあり'},
+            {'name': '車椅子施設', 'response_conditions': ['車椅子対応'], 'congestion': 'やや混雑'},
+            {'name': '満員施設', 'response_conditions': ['ペット同伴可'], 'congestion': '満員'},
+        ]
+        self.assertEqual(
+            [item['name'] for item in filter_shelters(None, ['pets'], shelters)],
+            ['ペット施設', '満員施設']
+        )
+        self.assertEqual(
+            [item['name'] for item in filter_shelters(None, ['pets', 'exclude_full'], shelters)],
+            ['ペット施設']
+        )
+
 
 class HomeInstructionsTests(unittest.TestCase):
     def test_filters_and_sorts_resident_instructions_for_home(self):
@@ -45,6 +60,14 @@ class HomeInstructionsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_home_instructions('西')
 
+    def test_empty_home_area_returns_all_resident_instructions(self):
+        records = [
+            {'id': 1, 'target': '住民', 'area': '北', 'status': '発信中', 'urgency': '低'},
+            {'id': 2, 'target': '住民', 'area': '南', 'status': '発信中', 'urgency': '高'},
+            {'id': 3, 'target': '防災課', 'area': '北', 'status': '発信中', 'urgency': '高'},
+        ]
+        self.assertEqual([item['id'] for item in get_home_instructions('', records)], [2, 1])
+
 
 class ShelterSearchPageTests(unittest.TestCase):
     def test_search_form_has_required_area_and_conditions(self):
@@ -67,6 +90,24 @@ class ShelterSearchPageTests(unittest.TestCase):
             response = client.get('/search_results?area=%E5%8C%97%E5%81%B4&district=%E9%9D%92%E6%9D%BE&pet_ok=1&wheelchair_ok=1')
             self.assertEqual(response.status_code, 200)
             self.assertIn('北側', response.get_data(as_text=True))
+
+    def test_search_results_route_applies_filter_parameters(self):
+        from app import shelters
+
+        original_shelters = list(shelters)
+        try:
+            shelters[:] = [
+                {'name': '空きペット', 'area': '北側', 'response_conditions': ['ペット同伴可'], 'congestion': '空きあり'},
+                {'name': '満員ペット', 'area': '北側', 'response_conditions': ['ペット同伴可'], 'congestion': '満員'},
+            ]
+            with app.test_client() as client:
+                response = client.get('/search_results?area=%E5%8C%97%E5%81%B4&filters=pets&filters=exclude_full')
+            html = response.get_data(as_text=True)
+            self.assertIn('空きペット', html)
+            self.assertNotIn('満員ペット', html)
+            self.assertIn('value="exclude_full"', html)
+        finally:
+            shelters[:] = original_shelters
 
 
 if __name__ == '__main__':
