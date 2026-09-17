@@ -67,20 +67,6 @@
   },
   {
     "id": 13,
-    "name": "a",
-    "area": "北側",
-    "postal_code": "038-1331",
-    "address": "青森県青森市浪岡女鹿沢",
-    "contact": "",
-    "response_conditions": [],
-    "congestion": "空きあり",
-    "opening_status": "受け入れ可",
-    "district": "",
-    "latitude": 40.7032126,
-    "longitude": 140.5764606
-  },
-  {
-    "id": 14,
     "name": "中とろ",
     "area": "北側",
     "postal_code": "038-1311",
@@ -94,7 +80,7 @@
     "district": ""
   },
   {
-    "id": 15,
+    "id": 14,
     "name": "えんがわ",
     "area": "北側",
     "postal_code": "030-0155",
@@ -109,5 +95,35 @@
     "district": "",
     "latitude": 40.7409604,
     "longitude": 140.6861106
+  },
+  {
+    "id": 15,
+    "name": "たい",
+    "area": "北側",
+    "postal_code": "036-0535",
+    "address": "青森県黒石市高舘甲高原５８",
+    "contact": "090-1234-5678",
+    "response_conditions": [
+      "ペット同伴可",
+      "車椅子対応",
+      "多目的トイレ等"
+    ],
+    "congestion": "空きあり",
+    "opening_status": "受け入れ可",
+    "district": ""
+  },
+  {
+    "id": 16,
+    "name": "いくら",
+    "area": "北側",
+    "postal_code": "038-0012",
+    "address": "青森県青森市柳川１丁目１",
+    "contact": "090-1234-5678",
+    "response_conditions": [
+      "ペット同伴可"
+    ],
+    "congestion": "空きあり",
+    "opening_status": "受け入れ可",
+    "district": ""
   }
 ]

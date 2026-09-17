@@ -68,6 +68,20 @@ class HomeInstructionsTests(unittest.TestCase):
         ]
         self.assertEqual([item['id'] for item in get_home_instructions('', records)], [2, 1])
 
+    def test_instruction_for_both_regions_is_shown_in_either_home_area(self):
+        records = [
+            {
+                'id': 1,
+                'target': '住民',
+                'area': '北',
+                'region': '北部、南部',
+                'status': '発信中',
+                'urgency': '高',
+            },
+        ]
+        self.assertEqual([item['id'] for item in get_home_instructions('北側', records)], [1])
+        self.assertEqual([item['id'] for item in get_home_instructions('南側', records)], [1])
+
 
 class ShelterSearchPageTests(unittest.TestCase):
     def test_search_form_has_required_area_and_conditions(self):

@@ -86,7 +86,7 @@
       <textarea class="board-textarea" id="other_message" name="other_message" placeholder="（自由入力）">{{ other_message|default('') }}</textarea>
     </div>
     <div class="board-actions">
-      <button class="board-button secondary" type="reset">リセット</button>
+      <button class="board-button secondary" id="resetBoardForm" type="button">リセット</button>
       <button class="board-button" type="submit">送信</button>
       <a class="board-home" href="/">ホームに戻る</a>
     </div>
@@ -117,4 +117,18 @@
     </div>
   </section>
 </div>
+<script>
+  document.getElementById('resetBoardForm').addEventListener('click', function () {
+    const form = document.getElementById('boardForm');
+    form.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+      input.checked = false;
+    });
+    form.querySelectorAll('select').forEach(function (select) {
+      select.selectedIndex = 0;
+    });
+    form.querySelectorAll('textarea, input[type="text"]').forEach(function (input) {
+      input.value = '';
+    });
+  });
+</script>
 {% endblock %}

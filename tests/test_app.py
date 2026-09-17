@@ -20,6 +20,29 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()['area'], '')
 
+    def test_geocode_address_falls_back_to_shorter_candidate_for_detailed_addresses(self):
+        responses = [
+            [],
+            [{'lat': '40.8227338', 'lon': '140.7469235'}],
+        ]
+
+        def fake_urlopen(request, timeout=5):
+            payload = responses.pop(0)
+            class DummyResponse:
+                def __enter__(self):
+                    return self
+                def __exit__(self, exc_type, exc, tb):
+                    return False
+                def read(self):
+                    return b'[]' if not payload else b'[{"lat": "40.8227338", "lon": "140.7469235"}]'
+            return DummyResponse()
+
+        with patch('app.urllib.request.urlopen', side_effect=fake_urlopen):
+            self.assertEqual(
+                app_module.geocode_address('青森県青森市大字本町1-1 青森市役所'),
+                (40.8227338, 140.7469235),
+            )
+
     def test_login_and_shelter_registration(self):
         response = self.client.post('/login', data={'password': '123'})
         self.assertEqual(response.status_code, 302)

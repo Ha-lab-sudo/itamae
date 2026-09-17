@@ -126,22 +126,35 @@ def save_shelters():
 
 
 def geocode_address(address):
-    """住所を地図用座標へ変換する。取得できない場合はNoneを返す。"""
+    """住所を地図用座標へ変換する。詳細住所が一致しない場合は短縮版で再試行する。"""
     if not address:
         return None
-    try:
-        query = quote(address)
-        geocode_request = urllib.request.Request(
-            f'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q={query}',
-            headers={'User-Agent': 'bousai-app/1.0'},
-        )
-        with urllib.request.urlopen(geocode_request, timeout=5) as response:
-            results = json.loads(response.read())
-        if not results:
-            return None
-        return float(results[0]['lat']), float(results[0]['lon'])
-    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
-        return None
+
+    address = ' '.join(str(address).split())
+    candidates = []
+    seen = set()
+    parts = [part.strip() for part in address.split() if part.strip()]
+    for i in range(len(parts), 0, -1):
+        candidate = ' '.join(parts[:i])
+        if candidate and candidate not in seen:
+            candidates.append(candidate)
+            seen.add(candidate)
+
+    for candidate in candidates:
+        try:
+            query = quote(candidate)
+            geocode_request = urllib.request.Request(
+                f'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q={query}',
+                headers={'User-Agent': 'bousai-app/1.0'},
+            )
+            with urllib.request.urlopen(geocode_request, timeout=5) as response:
+                results = json.loads(response.read())
+            if not results:
+                continue
+            return float(results[0]['lat']), float(results[0]['lon'])
+        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+            continue
+    return None
 
 
 def reverse_geocode_coordinates(latitude, longitude):
@@ -295,8 +308,10 @@ HOME_AREA_OPTIONS = (
 )
 HOME_AREA_ALIAS_MAP = {
     '北': '北',
+    '北部': '北',
     '北側': '北',
     '南': '南',
+    '南部': '南',
     '南側': '南',
 }
 HOME_URGENCY_PRIORITY = {'高': 0, '中': 1, '低': 2}
@@ -325,8 +340,13 @@ def get_home_instructions(area, source=None):
     for item in items:
         if item.get('target') != '住民':
             continue
-        item_area = str(item.get('area', '')).strip()
-        if normalized_area and HOME_AREA_ALIAS_MAP.get(item_area, item_area) != normalized_area:
+        item_areas = {
+            HOME_AREA_ALIAS_MAP.get(part.strip(), part.strip())
+            for field in ('area', 'region')
+            for part in str(item.get(field, '')).replace('、', ',').split(',')
+            if part.strip()
+        }
+        if normalized_area and normalized_area not in item_areas:
             continue
         status = str(item.get('status', '')).strip()
         if status in INACTIVE_INSTRUCTION_STATUSES:

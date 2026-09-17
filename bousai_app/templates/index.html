@@ -61,43 +61,59 @@
     }
     .instruction-list {
         margin: 0;
-        padding-left: 1.1rem;
+        padding-left: 0;
+        list-style: none;
     }
     .instruction-item {
         margin: 0 0 12px;
-        padding: 0;
+        padding: 14px 14px 12px 16px;
+        border-left: 4px solid #dfeaf7;
+        border-radius: 12px;
+        background: #f8fafc;
+        box-shadow: inset 0 0 0 1px rgba(147, 170, 198, .12);
     }
-        .instruction-content {
-            display: grid;
-            gap: 6px;
-            line-height: 1.6;
-        }
-        .instruction-disaster {
-            color: var(--ink);
-            font-size: 18px;
-            font-weight: 800;
-        }
-        .instruction-shelter,
-        .instruction-message {
-            color: #34485f;
-        }
-        .instruction-shelter {
-            display: flex;
-            align-items: baseline;
-            gap: 7px;
-            font-weight: 700;
-        }
-        .instruction-shelter-label {
-            color: #34517d;
-            font-size: 13px;
-            font-weight: 800;
-        }
-    .instruction-item.urgent .instruction-content,
-    .instruction-item.urgent .instruction-label {
-        color: #c11a1a;
+    .instruction-item.urgent {
+        border-left-color: #d92d20;
+        background: linear-gradient(135deg, #fff3f2 0%, #fff7f4 100%);
+        box-shadow: inset 0 0 0 1px rgba(217, 45, 32, .12), 0 6px 18px rgba(217, 45, 32, .08);
+    }
+    .instruction-content {
+        display: grid;
+        gap: 6px;
+        line-height: 1.6;
+    }
+    .instruction-disaster {
+        color: var(--ink);
+        font-size: 18px;
+        font-weight: 800;
+    }
+    .instruction-item.urgent .instruction-disaster,
+    .instruction-item.urgent .instruction-message,
+    .instruction-item.urgent .instruction-shelter,
+    .instruction-item.urgent .instruction-content {
+        color: #a31d16;
+    }
+    .instruction-shelter,
+    .instruction-message {
+        color: #34485f;
+    }
+    .instruction-shelter {
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
+        font-weight: 700;
+    }
+    .instruction-shelter-label {
+        color: #34517d;
+        font-size: 13px;
+        font-weight: 800;
     }
     .instruction-meta {
-        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
         color: #607080;
         font-size: 14px;
     }
@@ -109,6 +125,11 @@
         color: #34517d;
         font-size: 12px;
         font-weight: 700;
+    }
+    .instruction-item.urgent .instruction-label {
+        background: #fee2e2;
+        color: #b42318;
+        border: 1px solid rgba(180, 35, 24, .15);
     }
     .empty-state {
         margin: 0;
@@ -239,26 +260,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const items = instructions.map(function(item) {
-            const urgency = item.urgency || '未設定';
-            const isUrgent = urgency === '高';
+            const urgency = String(item.urgency || '未設定').trim();
+            const highUrgencyTerms = ['高', '緊急', 'urgent', 'critical', '重要'];
+            const isUrgent = highUrgencyTerms.some(function(term) {
+                return urgency.includes(term) || String(item.priority || '').includes(term);
+            });
             const content = escapeHtml(item.content || '');
-                const disaster = item.disaster ? escapeHtml(item.disaster) : '';
-                const shelter = item.shelter ? escapeHtml(item.shelter) : '';
-                const otherMessage = item.other_message ? escapeHtml(item.other_message) : '';
-                const structuredContent = disaster || shelter || otherMessage
-                    ? `${disaster ? `<div class="instruction-disaster">${disaster}</div>` : ''}${shelter ? `<div class="instruction-shelter"><span class="instruction-shelter-label">避難所</span><span>${shelter}</span></div>` : ''}${otherMessage ? `<div class="instruction-message">${otherMessage}</div>` : ''}`
-                    : content;
+            const disaster = item.disaster ? escapeHtml(item.disaster) : '';
+            const shelter = item.shelter ? escapeHtml(item.shelter) : '';
+            const otherMessage = item.other_message ? escapeHtml(item.other_message) : '';
+            const structuredContent = disaster || shelter || otherMessage
+                ? `${disaster ? `<div class="instruction-disaster">${disaster}</div>` : ''}${shelter ? `<div class="instruction-shelter"><span class="instruction-shelter-label">避難所</span><span>${shelter}</span></div>` : ''}${otherMessage ? `<div class="instruction-message">${otherMessage}</div>` : ''}`
+                : content;
             const createdAt = item.created_at ? escapeHtml(item.created_at) : '';
             const urgencyText = escapeHtml(urgency);
-                        const region = item.region || '';
-                        const normalizedRegion = region.replaceAll('北部', '北側').replaceAll('南部', '南側');
+            const region = item.region || '';
+            const normalizedRegion = region.replaceAll('北部', '北側').replaceAll('南部', '南側');
             return `
               <li class="instruction-item ${isUrgent ? 'urgent' : ''}">
-                                                                <div class="instruction-content">${structuredContent}</div>
+                <div class="instruction-content">${structuredContent}</div>
                 <div class="instruction-meta">
-                                    ${normalizedRegion ? `<span class="instruction-label">${escapeHtml(normalizedRegion)}</span>` : ''}
+                  ${normalizedRegion ? `<span class="instruction-label">${escapeHtml(normalizedRegion)}</span>` : ''}
                   <span class="instruction-label">${urgencyText}</span>
-                  ${createdAt ? ` <span>発信日時: ${createdAt}</span>` : ''}
+                  ${createdAt ? `<span>発信日時: ${createdAt}</span>` : ''}
                 </div>
               </li>
             `;
