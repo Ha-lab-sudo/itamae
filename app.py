@@ -178,17 +178,45 @@ def reverse_geocode_coordinates(latitude, longitude):
                 f'https://maps.googleapis.com/maps/api/geocode/json?{query}',
                 headers={'Accept': 'application/json'},
             )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read())
         else:
             query = urlencode({'lat': latitude, 'lon': longitude})
             request = urllib.request.Request(
                 f'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?{query}',
                 headers={'Accept': 'application/json'},
             )
-        with urllib.request.urlopen(request, timeout=5) as response:
-            payload = json.loads(response.read())
+            try:
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    payload = json.loads(response.read())
+                address = (payload.get('results') or {}).get('lv01Nm')
+                if address:
+                    return address
+            except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+                pass
 
-        if not api_key:
-            return (payload.get('results') or {}).get('lv01Nm') or None
+            query = urlencode({
+                'format': 'jsonv2',
+                'lat': latitude,
+                'lon': longitude,
+                'zoom': 18,
+                'addressdetails': 1,
+            })
+            request = urllib.request.Request(
+                f'https://nominatim.openstreetmap.org/reverse?{query}',
+                headers={'Accept': 'application/json', 'User-Agent': 'bousai-app/1.0'},
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read())
+            address_data = payload.get('address') or {}
+            parts = [
+                address_data.get('state'),
+                address_data.get('city') or address_data.get('town') or address_data.get('village'),
+                address_data.get('suburb') or address_data.get('neighbourhood'),
+                address_data.get('quarter'),
+                address_data.get('road'),
+            ]
+            return ''.join(part for part in parts if part) or None
         if payload.get('status') != 'OK' or not payload.get('results'):
             return None
 

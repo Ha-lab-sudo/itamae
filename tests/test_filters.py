@@ -84,6 +84,10 @@ class ShelterSearchPageTests(unittest.TestCase):
             self.assertIn('name="multipurpose_toilet"', html)
             self.assertIn('method="get"', html)
             self.assertIn('action="/search_results"', html)
+            self.assertIn('id="locationPermissionDialog"', html)
+            self.assertIn('id="locationDialogConfirm"', html)
+            self.assertIn('取得する', html)
+            self.assertIn('navigator.geolocation.getCurrentPosition', html)
 
     def test_search_results_route_accepts_area_parameters(self):
         with app.test_client() as client:

@@ -171,15 +171,60 @@
         border: 1px solid #dbe3ee;
         background: #f8fafc;
     }
+    .location-permission-dialog {
+        width: min(420px, calc(100% - 32px));
+        padding: 22px;
+        border: 0;
+        border-radius: 12px;
+        color: var(--text);
+        box-shadow: 0 16px 40px rgba(31, 57, 91, 0.25);
+    }
+    .location-permission-dialog::backdrop { background: rgba(14, 27, 44, 0.45); }
+    .location-permission-dialog h3 { margin: 0 0 10px; color: var(--primary); }
+    .location-permission-dialog p { margin: 0 0 18px; line-height: 1.6; }
+    .location-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .location-dialog-actions button {
+        min-height: 42px;
+        padding: 8px 14px;
+        border: 1px solid var(--primary);
+        border-radius: 8px;
+        font: inherit;
+        cursor: pointer;
+    }
+    .location-dialog-cancel { color: var(--text); background: #fff; }
+    .location-dialog-confirm { color: #fff; background: var(--primary); }
     .location-button {
+        position: relative;
         min-height: 44px;
         padding: 9px 14px;
-        border: 0;
+        border: 2px solid var(--primary);
         border-radius: 6px;
         color: #fff;
         background: var(--primary);
         font: inherit;
+        font-weight: 700;
         cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease, transform .1s ease;
+    }
+    .location-button:hover { background: var(--primary-strong); }
+    .location-button:active { transform: translateY(2px); }
+    .location-button:focus-visible {
+        outline: 4px solid var(--field-focus);
+        outline-offset: 2px;
+    }
+    .location-button.is-loading {
+        border-color: #a66b00;
+        color: #4b3000;
+        background: #ffd166;
+        cursor: wait;
+    }
+    .location-button.is-success {
+        border-color: #167a3e;
+        background: #198754;
+    }
+    .location-button.is-error {
+        border-color: #a12020;
+        background: #c83c3c;
     }
     .location-status { margin: 0; color: var(--muted); font-size: .9rem; }
     .location-address { margin: 4px 0 0; color: var(--text); font-size: .9rem; font-weight: 700; }
@@ -220,12 +265,21 @@
     <div class="search-panel">
         <h2 class="search-heading">避難所検索</h2>
         <div class="location-tools">
-            <button class="location-button" id="searchLocationButton" type="button">現在地を取得</button>
+            <button class="location-button" id="searchLocationButton" type="button" aria-controls="searchLocationStatus" aria-busy="false">現在地を再取得</button>
             <div>
-                <p class="location-status" id="searchLocationStatus">現在地を取得すると、検索結果で距離とルート案内を利用できます。</p>
+                <p class="location-status" id="searchLocationStatus" role="status" aria-live="polite">現在地を取得すると、検索結果で距離とルート案内を利用できます。</p>
                 <p class="location-address" id="searchLocationAddress"></p>
             </div>
         </div>
+
+        <dialog class="location-permission-dialog" id="locationPermissionDialog" aria-labelledby="locationPermissionTitle">
+            <h3 id="locationPermissionTitle">現在地を取得しますか？</h3>
+            <p>現在地を取得すると、現在住所が入力され、検索結果を近い避難所順に表示できます。距離と徒歩ルート案内にも利用します。</p>
+            <div class="location-dialog-actions">
+                <button class="location-dialog-cancel" id="locationDialogCancel" type="button">今回は取得しない</button>
+                <button class="location-dialog-confirm" id="locationDialogConfirm" type="button">取得する</button>
+            </div>
+        </dialog>
 
         {% if error_message %}
             <div class="error-message" role="alert">{{ error_message }}</div>
@@ -291,6 +345,9 @@
     const locationButton = document.getElementById('searchLocationButton');
     const locationStatus = document.getElementById('searchLocationStatus');
     const locationAddress = document.getElementById('searchLocationAddress');
+    const locationPermissionDialog = document.getElementById('locationPermissionDialog');
+    const locationDialogCancel = document.getElementById('locationDialogCancel');
+    const locationDialogConfirm = document.getElementById('locationDialogConfirm');
     const currentAddress = document.getElementById('current_address');
     const searchForm = document.querySelector('.search-form');
     const districtMap = {
@@ -382,18 +439,29 @@
             });
     });
 
-    locationButton.addEventListener('click', function () {
+    function setLocationButtonState(state, label, isBusy) {
+        locationButton.classList.remove('is-loading', 'is-success', 'is-error');
+        if (state) locationButton.classList.add('is-' + state);
+        locationButton.disabled = Boolean(isBusy);
+        locationButton.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+        locationButton.textContent = label;
+    }
+
+    function acquireLocation() {
+        locationStatus.textContent = '現在地を取得しています...';
         if (!navigator.geolocation) {
+            setLocationButtonState('error', '再取得できません', false);
             locationStatus.textContent = 'このブラウザは位置情報に対応していません。';
             return;
         }
         if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            setLocationButtonState('error', 'HTTPSが必要です', false);
             locationStatus.textContent = '現在地取得にはHTTPS接続が必要です。HTTPSまたはlocalhostで開いてください。';
             return;
         }
-        locationButton.disabled = true;
-        locationButton.textContent = '現在地を取得中...';
-        navigator.geolocation.getCurrentPosition(function (position) {
+        setLocationButtonState('loading', '取得中...（押下済み）', true);
+        try {
+            navigator.geolocation.getCurrentPosition(function (position) {
             const location = {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
@@ -407,29 +475,53 @@
                     location.address = address;
                     currentAddress.value = address;
                     localStorage.setItem('bousai.currentLocation', JSON.stringify(location));
+                    setLocationButtonState('success', '現在地を取得しました', false);
                     locationStatus.textContent = '現在地を取得しました。検索後に距離とルート案内を利用できます。';
                 })
                 .catch(function () {
+                    setLocationButtonState('error', '住所取得に失敗しました', false);
                     locationAddress.textContent = '現在地の住所を取得できませんでした。';
                     locationStatus.textContent = '現在地を取得しました。住所は手入力できます。';
                 })
                 .then(function () {
-                    locationButton.disabled = false;
-                    locationButton.textContent = '現在地を更新';
+                    if (!locationButton.classList.contains('is-error')
+                        && !locationButton.classList.contains('is-success')) {
+                        setLocationButtonState('', '現在地を再取得', false);
+                    }
                 });
-        }, function (error) {
-            locationButton.disabled = false;
-            locationButton.textContent = '現在地を取得';
-            if (error && error.code === error.PERMISSION_DENIED) {
-                locationStatus.textContent = '位置情報の利用が拒否されています。ブラウザのサイト設定で許可してください。';
-            } else if (error && error.code === error.POSITION_UNAVAILABLE) {
-                locationStatus.textContent = '現在地を取得できませんでした。GPSや位置情報サービスを確認してください。';
-            } else if (error && error.code === error.TIMEOUT) {
-                locationStatus.textContent = '現在地の取得がタイムアウトしました。もう一度お試しください。';
-            } else {
-                locationStatus.textContent = '現在地を取得できませんでした。時間をおいて再度お試しください。';
-            }
-        });
+            }, function (error) {
+                if (error && error.code === error.PERMISSION_DENIED) {
+                    setLocationButtonState('error', '許可が必要です', false);
+                    locationStatus.textContent = '位置情報の利用が拒否されています。ブラウザのサイト設定で許可してください。';
+                } else if (error && error.code === error.POSITION_UNAVAILABLE) {
+                    setLocationButtonState('error', '取得できませんでした', false);
+                    locationStatus.textContent = '現在地を取得できませんでした。GPSや位置情報サービスを確認してください。';
+                } else if (error && error.code === error.TIMEOUT) {
+                    setLocationButtonState('error', '時間切れです', false);
+                    locationStatus.textContent = '現在地の取得がタイムアウトしました。もう一度お試しください。';
+                } else {
+                    setLocationButtonState('error', '取得に失敗しました', false);
+                    locationStatus.textContent = '現在地を取得できませんでした。時間をおいて再度お試しください。';
+                }
+            }, {
+                enableHighAccuracy: false,
+                timeout: 15000,
+                maximumAge: 0
+            });
+        } catch (error) {
+            setLocationButtonState('error', '取得に失敗しました', false);
+            locationStatus.textContent = '現在地取得を開始できませんでした。ブラウザの設定を確認してください。';
+        }
+    }
+
+    locationButton.addEventListener('click', acquireLocation);
+    locationDialogCancel.addEventListener('click', function () {
+        locationPermissionDialog.close();
+        locationStatus.textContent = '位置情報は取得していません。必要になったら再取得できます。';
+    });
+    locationDialogConfirm.addEventListener('click', function () {
+        locationPermissionDialog.close();
+        acquireLocation();
     });
 
     function getAddressFromCoordinates(latitude, longitude) {
@@ -446,9 +538,28 @@
 
     try {
         const savedLocation = JSON.parse(localStorage.getItem('bousai.currentLocation') || 'null');
-        if (savedLocation && savedLocation.address) {
-            currentAddress.value = savedLocation.address;
-            locationAddress.textContent = '現在地: ' + savedLocation.address;
+        if (savedLocation && Number.isFinite(Number(savedLocation.latitude))
+            && Number.isFinite(Number(savedLocation.longitude))) {
+            if (savedLocation.address) {
+                currentAddress.value = savedLocation.address;
+                locationAddress.textContent = '現在地: ' + savedLocation.address;
+                locationStatus.textContent = '現在地を利用できます。距離とルート案内に反映されます。';
+            } else {
+                locationStatus.textContent = '現在地の住所を再取得中...';
+                getAddressFromCoordinates(savedLocation.latitude, savedLocation.longitude)
+                    .then(function (address) {
+                        currentAddress.value = address;
+                        savedLocation.address = address;
+                        localStorage.setItem('bousai.currentLocation', JSON.stringify(savedLocation));
+                        locationAddress.textContent = '現在地: ' + address;
+                        locationStatus.textContent = '現在地を利用できます。距離とルート案内に反映されます。';
+                    })
+                    .catch(function () {
+                        locationStatus.textContent = '現在住所を取得できませんでした。再取得ボタンをお試しください。';
+                    });
+            }
+        } else if (locationPermissionDialog && typeof locationPermissionDialog.showModal === 'function') {
+            locationPermissionDialog.showModal();
         }
     } catch (error) { localStorage.removeItem('bousai.currentLocation'); }
 });
